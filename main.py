@@ -3,6 +3,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI, Request
 from aiogram import types, Bot, Dispatcher
+# Force rebuild
 from handlers import start, bot_settings
 from config import bot, dp, WEBHOOK_TUNNEL_URL, TOKEN
 from db import create_tables, UserBot, get_db_session, engine
