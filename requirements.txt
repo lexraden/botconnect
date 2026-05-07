@@ -1,0 +1,6 @@
+aiogram==3.13.1
+sqlalchemy
+asyncpg
+fastapi
+pytz
+dotenv
