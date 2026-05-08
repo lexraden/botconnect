@@ -6,4 +6,4 @@ uvicorn>=0.27.0
 pytz
 python-dotenv
 aiocryptopay
-# Force rebuild
+python-dateutil
