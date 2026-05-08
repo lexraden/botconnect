@@ -9,7 +9,9 @@ from collections import defaultdict
 load_dotenv()
 
 TOKEN = os.getenv("TOKEN")
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 CRYPTO_BOT_TOKEN = os.getenv("CRYPTO_BOT_TOKEN")
 WEBHOOK_TUNNEL_URL = os.getenv("WEBHOOK_TUNNEL_URL")
 
