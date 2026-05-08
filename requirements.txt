@@ -2,5 +2,8 @@ aiogram==3.13.1
 sqlalchemy
 asyncpg
 fastapi
+uvicorn>=0.27.0
 pytz
-dotenv
+python-dotenv
+aiocryptopay
+# Force rebuild
