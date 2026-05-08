@@ -1,9 +1,26 @@
 import asyncio
 import logging
+import traceback
 from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI, Request
 from aiogram import types, Bot, Dispatcher
-# Force rebuild
+
+try:
+    import config
+    print("[DEBUG] config.py imported OK")
+except Exception as e:
+    print(f"[DEBUG] config.py FAILED: {e}")
+    traceback.print_exc()
+    raise
+
+try:
+    from handlers import start
+    print("[DEBUG] handlers.start imported OK")
+except Exception as e:
+    print(f"[DEBUG] handlers.start FAILED: {e}")
+    traceback.print_exc()
+    raise
+
 from handlers import start, bot_settings
 from config import bot, dp, WEBHOOK_TUNNEL_URL, TOKEN
 from db import create_tables, UserBot, get_db_session, engine
