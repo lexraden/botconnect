@@ -243,7 +243,7 @@ async def create_tables():
         # Миграция: добавляем новые колонки если их нет
         await conn.execute(
             sqlalchemy.text(
-                "ALTER TABLE channels ADD COLUMN IF NOT EXISTS captcha_button_text VARCHAR DEFAULT NULL"
+                "ALTER TABLE bots_channels ADD COLUMN IF NOT EXISTS captcha_button_text VARCHAR DEFAULT NULL"
             )
         )
 
