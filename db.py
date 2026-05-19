@@ -187,6 +187,7 @@ class Channels(Base):
     channel_id = Column(BigInteger, nullable=False, unique=True)            # ID канала
     auto_accept = Column(Boolean, default=True)                             # Включено ли автопринятие заявок
     captcha = Column(Boolean, default=False)                                # Включена ли капча
+    captcha_button_text = Column(String, nullable=True, default=None)       # Текст кнопки капчи
 
     bot = relationship("UserBot", back_populates="channels")
     messages = relationship("ChannelMessage", back_populates="channels", cascade="all, delete")

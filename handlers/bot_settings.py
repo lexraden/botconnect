@@ -1,5 +1,5 @@
 from aiogram import Router, F, Bot
-from aiogram.types import Message, InlineKeyboardButton, CallbackQuery, InputMediaAudio, InputMediaAudio, InputMediaPhoto, InputMediaDocument, InputMediaVideo, InlineKeyboardButton
+from aiogram.types import Message, InlineKeyboardButton, CallbackQuery, InputMediaAudio, InputMediaAudio, InputMediaPhoto, InputMediaDocument, InputMediaVideo, InlineKeyboardButton, BufferedInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -8,6 +8,8 @@ from dict import MESSAGES
 from sqlalchemy.future import select
 from sqlalchemy import func
 import asyncio
+import csv
+import io
 from config import dp
 from datetime import datetime
 from handlers.menu_handlers.adding_button import BotSettingsStates
@@ -88,6 +90,7 @@ async def statistics_callback(callback_query: CallbackQuery, state: FSMContext):
                 users_year=users_year_count,
             )
             keyboard = InlineKeyboardBuilder()
+            keyboard.row(InlineKeyboardButton(text=MESSAGES[lang]["export_users"], callback_data=f"export_users_{bot_id}"))
             keyboard.row(InlineKeyboardButton(text=MESSAGES[lang]["back"], callback_data="back"))
 
             # Отправляем сообщение
@@ -105,6 +108,46 @@ async def statistics_callback(callback_query: CallbackQuery, state: FSMContext):
     await state.update_data(previous_state=BotSettingsStates.bot_settings_menu, bot_id=bot_id)
     await callback_query.answer()
     
+@router.callback_query(F.data.startswith("export_users_"))
+async def export_users_callback(callback_query: CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    lang = await get_lang(user_id)
+
+    bot_id = int(callback_query.data.split("_")[-1])
+
+    async with await get_db_session() as session:
+        result = await session.execute(select(UserBot).filter(UserBot.id == bot_id))
+        bot_entry = result.scalars().first()
+
+        if not bot_entry:
+            await callback_query.answer(MESSAGES[lang]["bot_not_found"], show_alert=True)
+            return
+
+        user_result = await session.execute(
+            select(User).filter(User.bot_token == bot_entry.bot_token)
+        )
+        users = user_result.scalars().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["user_id", "username", "first_name", "last_name", "language_code", "created_at", "is_banned"])
+    for user in users:
+        writer.writerow([
+            user.user_id,
+            user.username or "",
+            user.first_name or "",
+            user.last_name or "",
+            user.language_code or "",
+            user.created_at.isoformat() if user.created_at else "",
+            user.is_banned or False
+        ])
+
+    csv_bytes = output.getvalue().encode("utf-8-sig")
+    input_file = BufferedInputFile(csv_bytes, filename=f"users_{bot_entry.bot_username}.csv")
+
+    await callback_query.message.answer_document(input_file)
+    await callback_query.answer()
+
 @router.callback_query(F.data.startswith("feedback_"))
 async def feedback_callback(callback_query: CallbackQuery, state: FSMContext):
     """

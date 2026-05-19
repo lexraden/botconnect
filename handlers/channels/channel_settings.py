@@ -24,6 +24,8 @@ class ChannelSetingsStates(StatesGroup):
     awaiting_message = State()
     awaiting_new_message = State()
     awaiting_buttons = State()
+    awaiting_captcha_text = State()
+    user_access = State()
 
 router = Router(name=__name__)
 

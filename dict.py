@@ -277,6 +277,10 @@ MESSAGES = {
         "skip": "Без URL",
         "captcha_message": "Для того чтобы зайти в канал {channel_name} необходимо подтвердить что вы не робот",
         "not_robot": "Я не робот ✅",
+        "captcha_settings": "⚙️ Настроить текст капчи",
+        "captcha_text_prompt": "Введите новый текст для кнопки капчи:",
+        "captcha_text_updated": "✅ Текст капчи обновлён!",
+        "captcha_current_text": "Текущий текст кнопки: {text}",
         "user_access": "Прием заявок",
         "channel_greetings_settings": "Настроить приветствие",
         "channel_farewell_settings": "Настроить прощание",
@@ -339,7 +343,8 @@ MESSAGES = {
         "bot_delete_asnwer": "Вы уверены что хотите удалить бота {bot_name}?\n\n",
         "bot_has_subscription": "У вас есть подписка на этого бота если вы удалите бота то и подписка пропадет вместе с ним",
         "accept_bot_delete": "✅ Уверен",
-        "bot_delete_button": "🗑️ Удалить бота"
+        "bot_delete_button": "🗑️ Удалить бота",
+        "export_users": "📥 Экспорт пользователей"
     },
     "en": {
         "user_leaved_channel": "You leaved channel {channel_name}",
@@ -398,6 +403,10 @@ MESSAGES = {
         "set_language_en": "🇬🇧 English",
         "set_language_all": "🌐 All languages",
         "not_robot": "I'm not a robot ✅",
+        "captcha_settings": "⚙️ Configure captcha text",
+        "captcha_text_prompt": "Enter new text for the captcha button:",
+        "captcha_text_updated": "✅ Captcha text updated!",
+        "captcha_current_text": "Current button text: {text}",
         "captcha_message": "In order to log into the channel {channel_name}, you must confirm that you are not a robot",
         "enter_url_button_data": (
             "Enter the button data in the format:\n"
@@ -673,5 +682,6 @@ MESSAGES = {
         "payment_failed": "Payment failed.",
         "payment_successful": "Payment successfully completed. You are subscribed to the bot {bot_username} until {end_date}.",
         "invoice_not_found": "Invoice not found. The record has been removed from pending payments.",
+        "export_users": "📥 Export users"
     }
 }

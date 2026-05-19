@@ -1,5 +1,5 @@
 from aiogram import Router, types, Bot, types , F
-from aiogram.filters import Command, ChatMemberUpdatedFilter, JOIN_TRANSITION, LEAVE_TRANSITION
+from aiogram.filters import Command, ChatMemberUpdatedFilter, JOIN_TRANSITION, LEAVE_TRANSITION, BaseFilter
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, ChatMemberUpdated, ChatJoinRequest, KeyboardButton, InputMediaAudio, InputMediaPhoto, InputMediaDocument, InputMediaVideo
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.fsm.context import FSMContext
@@ -16,6 +16,30 @@ from datetime import datetime
 from dict import MESSAGES
 import asyncio
 
+
+class CaptchaTextFilter(BaseFilter):
+    async def __call__(self, message: Message, bot: Bot) -> bool:
+        if not message.text:
+            return False
+        user_id = message.from_user.id
+        async with await get_db_session() as session:
+            user_result = await session.execute(
+                select(User).filter(User.user_id == user_id, User.bot_token == bot.token)
+            )
+            user = user_result.scalars().first()
+            if not user or not user.from_chat_id:
+                return False
+            channel_result = await session.execute(
+                select(Channels).filter(Channels.channel_id == user.from_chat_id)
+            )
+            channel = channel_result.scalars().first()
+            if not channel or not channel.captcha:
+                return False
+            if channel.captcha_button_text:
+                return message.text == channel.captcha_button_text
+            else:
+                return message.text in [MESSAGES["ru"]["not_robot"], MESSAGES["en"]["not_robot"]]
+
 router = Router(name=__name__)
 
 @router.my_chat_member(ChatMemberUpdatedFilter(member_status_changed=JOIN_TRANSITION))
@@ -31,7 +55,7 @@ async def on_bot_added(event: ChatMemberUpdated, bot: Bot):
             # Получаем информацию о канале
             chat = event.chat
             channel_id = chat.id
-            channel_name = chat.title
+            channel_name = chat.title or "Unknown"
 
             # Проверяем, что канал еще не добавлен в базу данных
             existing_channel = await session.execute(
@@ -133,7 +157,10 @@ async def handle_join_request(event: ChatJoinRequest, bot: Bot):
             select(Channels).filter(Channels.channel_id == event.chat.id)
         )
         channel = channel_result.scalars().first()
-    
+
+    if not channel:
+        return
+
     if not channel.auto_accept:
         return
     
@@ -180,8 +207,9 @@ async def handle_join_request(event: ChatJoinRequest, bot: Bot):
 
     if channel.captcha:
         try:
+            captcha_btn_text = channel.captcha_button_text or MESSAGES[language_code if language_code == "ru" or "en" else "en"]["not_robot"]
             keyboard = ReplyKeyboardBuilder()
-            keyboard.add(KeyboardButton(text=MESSAGES[language_code if language_code == "ru" or "en" else "en"]["not_robot"]))
+            keyboard.add(KeyboardButton(text=captcha_btn_text))
             await bot.send_message(text = MESSAGES[language_code if language_code == "ru" or "en" else "en"]["captcha_message"].format(channel_name = channel_name), chat_id=user_id, reply_markup=keyboard.as_markup(resize_keyboard = True), parse_mode="Markdown")
         except Exception as e:
             print(f"Не удалось одобрить запрос пользователя {username} (ID: {user_id}): {e}")
@@ -208,7 +236,7 @@ async def handle_join_request(event: ChatJoinRequest, bot: Bot):
         else:
             await bot.send_message(user_id, "Вы зашли в канал")
 
-@router.message(F.text.in_([MESSAGES["ru"]["not_robot"], MESSAGES["en"]["not_robot"]]))
+@router.message(CaptchaTextFilter())
 async def handle_captcha_request(message: Message, state: FSMContext, bot: Bot):
     # Получаем ID пользователя и чата
     user_id = message.from_user.id
@@ -216,15 +244,21 @@ async def handle_captcha_request(message: Message, state: FSMContext, bot: Bot):
     # Информация о пользователе и канале
     async with await get_db_session() as session:
         user_result = await session.execute(
-            select(User).filter(User.user_id == user_id)
+            select(User).filter(User.user_id == user_id, User.bot_token == bot.token)
         )
         user = user_result.scalars().first()
-    
+
+        if not user:
+            return
+
         channel_result = await session.execute(
             select(Channels).filter(Channels.channel_id == user.from_chat_id)
         )
         channel = channel_result.scalars().first()
-    
+
+        if not channel:
+            return
+
     lang = await get_lang(user_id)
     
     try:
@@ -261,15 +295,21 @@ async def handle_user_leave_chat(event: ChatMemberUpdated, bot: Bot):
             select(User).filter(User.user_id == user_id)
         )
         user = user_result.scalars().first()
-        
+
+        if not user:
+            return
+
         if not user.from_chat_id:
             return
-        
+
         channel_result = await session.execute(
             select(Channels).filter(Channels.channel_id == user.from_chat_id)
         )
         channel = channel_result.scalars().first()
-        
+
+        if not channel:
+            return
+
         if not channel.auto_accept:
             return
         

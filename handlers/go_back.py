@@ -866,4 +866,37 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
             await state.update_data(sent_message_ids=sent_message_ids)
         
         await state.update_data(previous_state = ChannelSetingsStates.channel_messages, channel_message_id = channel_message.id, channel_id = channel.channel_id)
-        
+
+    elif previous_state == ChannelSetingsStates.user_access:
+        channel_id = data.get("channel_id")
+
+        async with await get_db_session() as session:
+            channel_result = await session.execute(
+                    select(Channels).filter(Channels.id == channel_id)
+                )
+            channel = channel_result.scalars().first()
+
+            keyboard = InlineKeyboardBuilder()
+            keyboard.row(
+                InlineKeyboardButton(text=MESSAGES[lang]["user_access_enabled"] if channel.auto_accept else MESSAGES[lang]["user_access_disabled"], callback_data=f"auto_access_switch_{channel.id}")
+            )
+            keyboard.row(
+                InlineKeyboardButton(text=MESSAGES[lang]["captha_enabled"] if channel.captcha else MESSAGES[lang]["captha_disabled"], callback_data=f"captha_switch_{channel.id}")
+            )
+            if channel.captcha:
+                keyboard.row(
+                    InlineKeyboardButton(text=MESSAGES[lang]["captcha_settings"], callback_data=f"captcha_settings_{channel.id}")
+                )
+            keyboard.row(
+                InlineKeyboardButton(text=MESSAGES[lang]["back"], callback_data="back")
+            )
+
+        await state.update_data(previous_state=ChannelSetingsStates.channel_settings, channel_id=channel_id)
+
+        await callback_query.message.edit_text(
+            text=MESSAGES[lang]["user_access_text"].format(channel_name=channel.channel_name,
+                                                           user_access="✅" if channel.auto_accept else "❌",
+                                                           captcha="✅" if channel.captcha else "❌"),
+            parse_mode="Markdown",
+            reply_markup=keyboard.as_markup()
+        )
