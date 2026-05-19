@@ -1,4 +1,5 @@
 from aiogram import types
+import sqlalchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, BigInteger, func, ForeignKey, UniqueConstraint, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.future import select
@@ -239,6 +240,12 @@ async def create_tables():
     async with engine.begin() as conn:
         # Создание таблиц в базе данных
         await conn.run_sync(Base.metadata.create_all)
+        # Миграция: добавляем новые колонки если их нет
+        await conn.execute(
+            sqlalchemy.text(
+                "ALTER TABLE channels ADD COLUMN IF NOT EXISTS captcha_button_text VARCHAR DEFAULT NULL"
+            )
+        )
 
 # Функция для получения сессии
 async def get_db_session() -> AsyncSession:
