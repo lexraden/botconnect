@@ -211,7 +211,10 @@ async def handle_join_request(event: ChatJoinRequest, bot: Bot):
             captcha_btn_text = channel.captcha_button_text or MESSAGES[lang]["not_robot"]
             keyboard = ReplyKeyboardBuilder()
             keyboard.add(KeyboardButton(text=captcha_btn_text))
-            await bot.send_message(text = MESSAGES[lang]["captcha_message"].format(channel_name = channel_name), chat_id=user_id, reply_markup=keyboard.as_markup(resize_keyboard = True), parse_mode="Markdown")
+            try:
+                await bot.send_message(text = MESSAGES[lang]["captcha_message"].format(channel_name = channel_name), chat_id=user_id, reply_markup=keyboard.as_markup(resize_keyboard = True), parse_mode="Markdown")
+            except Exception:
+                await bot.send_message(text = MESSAGES[lang]["captcha_message"].format(channel_name = channel_name), chat_id=user_id, reply_markup=keyboard.as_markup(resize_keyboard = True))
         except Exception as e:
             print(f"Не удалось одобрить запрос пользователя {username} (ID: {user_id}): {e}")
     else:
