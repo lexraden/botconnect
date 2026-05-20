@@ -187,7 +187,7 @@ async def handle_join_request(event: ChatJoinRequest, bot: Bot):
                 username=username,
                 first_name=first_name,
                 last_name=last_name,
-                language_code=language_code if language_code == "ru" or "en" else "en",
+                language_code=language_code if language_code in ("ru", "en") else "en",
                 bot_token=bot.token,
                 from_chat_id=chat_id
             )
@@ -207,10 +207,11 @@ async def handle_join_request(event: ChatJoinRequest, bot: Bot):
 
     if channel.captcha:
         try:
-            captcha_btn_text = channel.captcha_button_text or MESSAGES[language_code if language_code == "ru" or "en" else "en"]["not_robot"]
+            lang = language_code if language_code in ("ru", "en") else "en"
+            captcha_btn_text = channel.captcha_button_text or MESSAGES[lang]["not_robot"]
             keyboard = ReplyKeyboardBuilder()
             keyboard.add(KeyboardButton(text=captcha_btn_text))
-            await bot.send_message(text = MESSAGES[language_code if language_code == "ru" or "en" else "en"]["captcha_message"].format(channel_name = channel_name), chat_id=user_id, reply_markup=keyboard.as_markup(resize_keyboard = True), parse_mode="Markdown")
+            await bot.send_message(text = MESSAGES[lang]["captcha_message"].format(channel_name = channel_name), chat_id=user_id, reply_markup=keyboard.as_markup(resize_keyboard = True), parse_mode="Markdown")
         except Exception as e:
             print(f"Не удалось одобрить запрос пользователя {username} (ID: {user_id}): {e}")
     else:
