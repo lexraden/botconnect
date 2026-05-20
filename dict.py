@@ -275,7 +275,7 @@ MESSAGES = {
         ),
         "invalid_url_format": "Неверный формат! Используйте: Текст кнопки | URL",
         "skip": "Без URL",
-        "captcha_message": "Для того чтобы зайти в канал {channel_name} необходимо подтвердить что вы не робот",
+        "captcha_message": "Для принятия в канал {channel_name}, пожалуйста, пройдите верификацию",
         "not_robot": "Я не робот ✅",
         "captcha_settings": "⚙️ Настроить текст капчи",
         "captcha_text_prompt": "Введите новый текст для кнопки капчи:",
@@ -407,7 +407,7 @@ MESSAGES = {
         "captcha_text_prompt": "Enter new text for the captcha button:",
         "captcha_text_updated": "✅ Captcha text updated!",
         "captcha_current_text": "Current button text: {text}",
-        "captcha_message": "In order to log into the channel {channel_name}, you must confirm that you are not a robot",
+        "captcha_message": "To be accepted into the channel {channel_name}, please confirm the verification",
         "enter_url_button_data": (
             "Enter the button data in the format:\n"
             "Button Text | URL\n"
