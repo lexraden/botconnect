@@ -55,7 +55,11 @@ async def on_bot_added(event: ChatMemberUpdated, bot: Bot):
             # Получаем информацию о канале
             chat = event.chat
             channel_id = chat.id
-            channel_name = chat.title or "Unknown"
+            try:
+                full_chat = await bot.get_chat(channel_id)
+                channel_name = full_chat.title or "Unknown"
+            except Exception:
+                channel_name = chat.title or "Unknown"
 
             # Проверяем, что канал еще не добавлен в базу данных
             existing_channel = await session.execute(
@@ -116,7 +120,7 @@ async def on_bot_removed(event: ChatMemberUpdated, bot: Bot):
             # Получаем информацию о канале
             chat = event.chat
             channel_id = chat.id
-            channel_name = chat.title
+            channel_name = chat.title or "Unknown"
 
             # Проверяем, что канал существует в базе данных
             existing_channel = await session.execute(
@@ -141,7 +145,7 @@ async def on_bot_removed(event: ChatMemberUpdated, bot: Bot):
             lang = await get_lang(user_id)
             
             message_text = (
-                MESSAGES[lang]["bot_added_to_channel"].format(channel_name = channel_name)
+                MESSAGES[lang]["bot_removed_from_channel"].format(channel_name = channel_name)
             )
 
             try:
