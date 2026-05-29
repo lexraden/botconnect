@@ -65,7 +65,9 @@ async def on_bot_added(event: ChatMemberUpdated, bot: Bot):
             existing_channel = await session.execute(
                 select(Channels).filter(Channels.channel_id == channel_id)
             )
-            if not existing_channel.scalars().first():
+            is_new = not existing_channel.scalars().first()
+
+            if is_new:
                 # Создаем новую запись в таблице Channels
                 new_channel = Channels(
                     bot_id=user_bot.id,
@@ -81,19 +83,23 @@ async def on_bot_added(event: ChatMemberUpdated, bot: Bot):
                     await session.rollback()
                     print(f"Ошибка при добавлении канала {channel_name} (ID: {channel_id}). Возможно, канал уже существует.")
 
+            # Отправляем уведомление только для новых каналов
+            if not is_new:
+                return
+
             channel_result = await session.execute(
                 select(Channels).filter(Channels.channel_id == channel_id)
             )
             channel = channel_result.scalars().first()
             # Отправляем сообщение пользователю, который добавил бота
             user_id = user_bot.user_id
-            
+
             lang = await get_lang(user_id)
-            
+
             message_text = (
                 MESSAGES[lang]["bot_added_to_channel"].format(channel_name = channel_name)
             )
-            
+
             keyboard = InlineKeyboardBuilder()
             keyboard.row(
                 InlineKeyboardButton(
