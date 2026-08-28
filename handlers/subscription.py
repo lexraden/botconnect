@@ -28,8 +28,14 @@ async def get_crypto_rate(crypto_symbol, fiat_currency='rub'):
     url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_symbol}&vs_currencies={fiat_currency}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
+            if response.status != 200:
+                raise RuntimeError(f"CoinGecko ответил {response.status} на запрос курса {crypto_symbol}")
             data = await response.json()
-            return data[crypto_symbol][fiat_currency]
+
+    rate = data.get(crypto_symbol, {}).get(fiat_currency)
+    if not rate:
+        raise RuntimeError(f"CoinGecko не вернул курс {crypto_symbol}/{fiat_currency}: {data}")
+    return rate
 
 async def convert_to_crypto(amount_in_rub, crypto_symbol):
     rate = await get_crypto_rate(crypto_symbol)
@@ -288,8 +294,15 @@ async def initiate_telegram_stars_payment(callback_query: types.CallbackQuery, s
     data = await state.get_data()
 
     subscription_price = data.get("subscription_price")
-    subscription_months = data.get("subscription_duration")
+    subscription_months = data.get("subscription_months")
+    subscription_duration = data.get("subscription_duration")
     bot_id = data.get("selected_bot_id")
+
+    if not subscription_months or not subscription_price:
+        logging.error("[ERROR] В состоянии нет данных о выбранной подписке.")
+        await callback_query.message.answer(MESSAGES[lang]["payment_failed"])
+        await state.clear()
+        return
 
     try:
         bot_username = await get_bot_username(bot_id)
@@ -301,7 +314,7 @@ async def initiate_telegram_stars_payment(callback_query: types.CallbackQuery, s
 
         # Создание счета
         title = f"Подписка на бота {bot_username}"
-        description = f"Подписка на {subscription_months} для бота {bot_username}"
+        description = f"Подписка на {subscription_duration} для бота {bot_username}"
         payload = f"{user_id}:{bot_id}:{subscription_months}:{subscription_price}"
         price = int(subscription_price / 2.15)  # Telegram Stars работает в копейках или другой валюте
         prices = [LabeledPrice(label="XTR", amount=price)]
@@ -380,8 +393,15 @@ async def initiate_crypto_bot_payment(callback_query: types.CallbackQuery, state
     data = await state.get_data()
 
     subscription_price = data.get("subscription_price")
-    subscription_months = data.get("subscription_duration")
+    subscription_months = data.get("subscription_months")
+    subscription_duration = data.get("subscription_duration")
     bot_id = data.get("selected_bot_id")
+
+    if not subscription_months or not subscription_price:
+        logging.error("[ERROR] В состоянии нет данных о выбранной подписке.")
+        await callback_query.message.edit_text(MESSAGES[lang]["payment_failed"])
+        await state.clear()
+        return
 
     try:
         async with await get_db_session() as session:
@@ -393,10 +413,13 @@ async def initiate_crypto_bot_payment(callback_query: types.CallbackQuery, state
                 await state.clear()
                 return
 
+            # CryptoBot принимает ограниченное число знаков после запятой
+            amount = round(await convert_to_crypto(subscription_price, "tether"), 2)
+
             invoice = await crypto_bot.create_invoice(
                 asset="USDT",
-                amount=str(await convert_to_crypto(subscription_price, "tether")),
-                description=f"Подписка на {subscription_months} для бота {bot.bot_username}",
+                amount=amount,
+                description=f"Подписка на {subscription_duration} для бота {bot.bot_username}",
                 payload=f"{user_id}:{bot_id}:{subscription_months}",
                 allow_comments=False,
                 allow_anonymous=False,

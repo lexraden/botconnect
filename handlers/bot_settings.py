@@ -310,7 +310,7 @@ async def bot_settings_main_menu(callback_query: CallbackQuery, state: FSMContex
                 reply_markup=keyboard.as_markup()
                 )
             
-            await state.update_data(previous_state=BotSettingsStates.bot_settings_menu)
+            await state.update_data(previous_state=BotSettingsStates.bot_settings_menu, bot_id=bot.id)
         else:
             keyboard.row(InlineKeyboardButton(text=MESSAGES[lang]["back"], callback_data="back"))
             
@@ -320,7 +320,7 @@ async def bot_settings_main_menu(callback_query: CallbackQuery, state: FSMContex
                 reply_markup=keyboard.as_markup()
                 )
             
-            await state.update_data(previous_state=BotSettingsStates.bot_settings_menu)
+            await state.update_data(previous_state=BotSettingsStates.bot_settings_menu, bot_id=bot.id)
     elif callback_query.data.startswith("open_mailings_"):
         if callback_query.from_user.id != bot.user_id:
             return

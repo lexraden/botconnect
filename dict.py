@@ -2,8 +2,13 @@ MESSAGES = {
     "ru": {
         "start_message": (
             "👋 *Добро пожаловать в Bot Connect!*\n\n"
-            "Это конструктор ботов обратной связи в Telegram. "
-            "Смотрите подробную инструкцию [здесь](https://example.com).\n\n"
+            "Это конструктор ботов обратной связи в Telegram.\n\n"
+            "Ваш бот будет:\n"
+            "• принимать сообщения от пользователей — вы отвечаете им прямо из своего чата\n"
+            "• встречать новых пользователей приветствием и меню с кнопками\n"
+            "• рассылать сообщения всей базе, в том числе по расписанию\n"
+            "• автоматически принимать заявки в канал и проверять новичков капчей\n"
+            "• собирать статистику пользователей и сообщений\n\n"
             "Добавьте своего бота чтобы начать!"
         ),
         "add_bot": "➕ Добавить бот",
@@ -491,8 +496,13 @@ MESSAGES = {
         "enter_reply_link": "Enter link for button",
         "start_message": (
             "👋 *Welcome to Bot Connect!*\n\n"
-            "This is a Telegram feedback bot constructor. "
-            "Check out the detailed instructions [here](https://example.com).\n\n"
+            "This is a Telegram feedback bot constructor.\n\n"
+            "Your bot will:\n"
+            "• receive messages from users — you reply to them right from your own chat\n"
+            "• greet new users with a welcome message and a button menu\n"
+            "• send mailings to all your users, on a schedule if you need it\n"
+            "• accept channel join requests automatically and screen newcomers with a captcha\n"
+            "• collect statistics on users and messages\n\n"
             "Add your bot to get started!"
         ),
         "add_bot": "➕ Add Bot",

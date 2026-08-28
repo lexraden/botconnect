@@ -72,7 +72,9 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
                 await callback_query.answer(MESSAGES[lang]["bot_not_found"], show_alert=True)
         # Ответ на callback
         await callback_query.answer()
-        await state.clear()
+        # Сбрасываем состояние, но оставляем бота, в меню которого вернулись
+        await state.set_state(None)
+        await state.set_data({"bot_id": bot_id})
     
     elif previous_state == BotSettingsStates.main_menu:
         # Возврат в создание меню
@@ -572,7 +574,7 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
                 reply_markup=keyboard.as_markup()
                 )
             
-            await state.update_data(previous_state=BotSettingsStates.bot_settings_menu)
+            await state.update_data(previous_state=BotSettingsStates.bot_settings_menu, bot_id=bot_id)
         else:
             keyboard.row(InlineKeyboardButton(text=MESSAGES[lang]["back"], callback_data="back"))
             
@@ -582,7 +584,7 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
                 reply_markup=keyboard.as_markup()
                 )
             
-            await state.update_data(previous_state=BotSettingsStates.bot_settings_menu)
+            await state.update_data(previous_state=BotSettingsStates.bot_settings_menu, bot_id=bot_id)
     
     elif previous_state == ChannelSetingsStates.channel_settings:
         channel_id = data.get("channel_id")
