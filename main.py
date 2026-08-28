@@ -89,10 +89,16 @@ async def setup_main_bot_webhook():
     ]
     await bot.set_my_commands(commands)
 
-    # Устанавливаем webhook
-    webhook_info = await bot.get_webhook_info()
-    if webhook_info.url != MAIN_BOT_WEBHOOK_URL:
-        await bot.set_webhook(url=MAIN_BOT_WEBHOOK_URL, drop_pending_updates = True)
+    # Устанавливаем webhook. Ошибка здесь не должна ронять запуск приложения,
+    # но обязана быть видна в логах: без webhook бот не получает обновления
+    if not WEBHOOK_TUNNEL_URL:
+        logging.error("WEBHOOK_TUNNEL_URL не задан, Telegram не сможет доставлять обновления")
+    else:
+        try:
+            await bot.set_webhook(url=MAIN_BOT_WEBHOOK_URL, drop_pending_updates = True)
+            logging.info(f"Webhook главного бота установлен на {WEBHOOK_TUNNEL_URL}")
+        except Exception as e:
+            logging.error(f"Не удалось установить webhook главного бота: {e}")
 
 @app.post(MAIN_BOT_WEBHOOK_PATH)
 async def process_main_bot_webhook(request: Request):
@@ -120,8 +126,15 @@ async def setup_added_bots_webhook():
         bot_tokens = [row[0] for row in result.fetchall()]
 
     # Устанавливаем webhook для каждого добавленного бота
+    started = 0
     for bot_token in bot_tokens:
-        await handlers_for_added_bots.setup_and_run_bot(bot_token)
+        try:
+            await handlers_for_added_bots.setup_and_run_bot(bot_token)
+            started += 1
+        except Exception as e:
+            logging.error(f"Не удалось настроить webhook добавленного бота: {e}")
+
+    logging.info(f"Webhook настроен у {started} из {len(bot_tokens)} добавленных ботов")
 
 @app.post("/bot/{bot_token}")
 async def process_added_bot_webhook(bot_token: str, request: Request):
@@ -148,20 +161,10 @@ async def on_shutdown():
     """
     Завершение работы ботов.
     """
+    # Webhook специально остается на месте: контейнер перезапускается при каждом
+    # деплое, и снятый webhook оставил бы ботов без обновлений до удачного старта
     try:
-        # Удаляем webhook для основного бота
-        await bot.delete_webhook(drop_pending_updates = True)
         await bot.session.close()
-
-        # Завершаем работу всех добавленных ботов
-        async with await get_db_session() as session:
-            result = await session.execute(select(UserBot.bot_token))
-            bot_tokens = [row[0] for row in result.fetchall()]
-            for bot_token in bot_tokens:
-                added_bot = Bot(token=bot_token)
-                await added_bot.delete_webhook(drop_pending_updates = True)
-                await added_bot.session.close()
-        
         await engine.dispose()
 
     except Exception as e:

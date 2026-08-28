@@ -964,10 +964,10 @@ async def setup_and_run_bot(bot_token: str):
     webhook_path = f"/bot/{bot_token}"
     webhook_url = f"{WEBHOOK_TUNNEL_URL}{webhook_path}"
 
-    # Проверяем текущий webhook и обновляем его при необходимости
-    current_webhook_info = await bot.get_webhook_info()
-    if current_webhook_info.url != webhook_url:
-        await bot.set_webhook(url=webhook_url, drop_pending_updates = True, allowed_updates=["message", "inline_query", "chat_member", "callback_query", "chat_member", "chat_join_request", "my_chat_member"])
+    if not WEBHOOK_TUNNEL_URL:
+        raise RuntimeError("WEBHOOK_TUNNEL_URL не задан")
+
+    await bot.set_webhook(url=webhook_url, drop_pending_updates = True, allowed_updates=["message", "inline_query", "chat_member", "callback_query", "chat_member", "chat_join_request", "my_chat_member"])
     
     commands = [
         types.BotCommand(command="/start", description="Начать"),
