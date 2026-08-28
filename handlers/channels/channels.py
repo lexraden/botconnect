@@ -42,7 +42,14 @@ class CaptchaTextFilter(BaseFilter):
 
 router = Router(name=__name__)
 
-@router.my_chat_member(ChatMemberUpdatedFilter(member_status_changed=JOIN_TRANSITION))
+# my_chat_member приходит и для личных чатов (юзер запустил или заблокировал бота),
+# поэтому обрабатываем только каналы и группы
+CHAT_TYPES = {"channel", "supergroup", "group"}
+
+@router.my_chat_member(
+    ChatMemberUpdatedFilter(member_status_changed=JOIN_TRANSITION),
+    F.chat.type.in_(CHAT_TYPES)
+)
 async def on_bot_added(event: ChatMemberUpdated, bot: Bot):
     async with await get_db_session() as session:
         # Получаем информацию о боте из базы данных
@@ -109,16 +116,18 @@ async def on_bot_added(event: ChatMemberUpdated, bot: Bot):
 
             try:
                 await bot.send_message(chat_id=user_id, text=message_text, parse_mode="Markdown", reply_markup=keyboard.as_markup())
-                await bot.session.close()
             except Exception as e:
                 print(f"Не удалось отправить сообщение пользователю {user_id}: {e}")
 
-@router.my_chat_member(ChatMemberUpdatedFilter(member_status_changed=LEAVE_TRANSITION))
+@router.my_chat_member(
+    ChatMemberUpdatedFilter(member_status_changed=LEAVE_TRANSITION),
+    F.chat.type.in_(CHAT_TYPES)
+)
 async def on_bot_removed(event: ChatMemberUpdated, bot: Bot):
     async with await get_db_session() as session:
         # Получаем информацию о боте из базы данных
         result = await session.execute(
-            select(UserBot).filter(UserBot.bot_token == event.new_chat_member.bot.token)
+            select(UserBot).filter(UserBot.bot_token == bot.token)
         )
         user_bot = result.scalars().first()
 
@@ -306,7 +315,7 @@ async def handle_user_leave_chat(event: ChatMemberUpdated, bot: Bot):
     
     async with await get_db_session() as session:
         user_result = await session.execute(
-            select(User).filter(User.user_id == user_id)
+            select(User).filter(User.user_id == user_id, User.bot_token == bot.token)
         )
         user = user_result.scalars().first()
 

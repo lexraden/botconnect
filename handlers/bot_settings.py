@@ -3,7 +3,7 @@ from aiogram.types import Message, InlineKeyboardButton, CallbackQuery, InputMed
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from db import UserBot, get_db_session, User, get_lang, Mailing, BotMenuButton, BotSubscription, Channels
+from db import UserBot, get_db_session, User, get_lang, Mailing, BotMenuButton, BotSubscription, Channels, count_blocked_users
 from dict import MESSAGES
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -43,7 +43,7 @@ async def statistics_callback(callback_query: CallbackQuery, state: FSMContext):
 
             # Считаем статистику
             total_users = len(users)  # Всего пользователей
-            blocked_users = bot_entry.users_blocked
+            blocked_users = await count_blocked_users(session, bot_entry.bot_token)
             sent_messages = bot_entry.total_messages_count  # Сообщений всего
             incoming_messages = bot_entry.sent_messages_count  # Входящих сообщений
             replied_messages = bot_entry.replied_messages_count  # Ответов
@@ -394,13 +394,15 @@ async def bot_settings_main_menu(callback_query: CallbackQuery, state: FSMContex
             )
             total_completed = total_completed_result.scalar() or 0
 
+            blocked_users = await count_blocked_users(session, bot_entry.bot_token)
+
             message_text = MESSAGES[lang]["mailing_statistics"].format(
                 scheduled_today=scheduled_today,
                 total_scheduled=total_scheduled,
                 completed_today=completed_today,
                 total_completed=total_completed,
                 total_users=total_users,
-                blocked_users=bot_entry.users_blocked or 0,
+                blocked_users=blocked_users,
                 daily_limit=daily_limit,
                 sent_today=sent_today,
                 remaining_limit=remaining_limit

@@ -9,7 +9,7 @@ from aiogram.filters import CommandStart
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import update, delete, func
 from sqlalchemy.future import select
-from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, User, Mailing, BotSubscription, get_lang
+from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, User, Mailing, BotSubscription, get_lang, count_blocked_users, mark_blocked_users
 from dict import MESSAGES
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -332,7 +332,8 @@ async def send_mailing_handler(callback_query: CallbackQuery, state: FSMContext)
         mailing_id = new_mailing.id
 
     # Отправка сообщений
-    blocked_users_count = 0
+    blocked_user_ids = []
+    delivered_user_ids = []
     success_count = 0
     if url_button:
         keyboard = InlineKeyboardBuilder()
@@ -410,13 +411,16 @@ async def send_mailing_handler(callback_query: CallbackQuery, state: FSMContext)
                     reply_markup=keyboard.as_markup()
                 )
             success_count += 1
+            delivered_user_ids.append(user.user_id)
         except Exception as e:
             if "bot was blocked by the user" in str(e):
-                blocked_users_count += 1
+                blocked_user_ids.append(user.user_id)
 
         await asyncio.sleep(0.034)
 
-    # Обновление рассылки как завершенной и количества заблокировавших
+    blocked_users_count = len(blocked_user_ids)
+
+    # Обновление рассылки как завершенной и статуса блокировки
     async with await get_db_session() as session:
         # Обновляем рассылку
         result = await session.execute(select(Mailing).filter(Mailing.id == mailing_id))
@@ -426,12 +430,8 @@ async def send_mailing_handler(callback_query: CallbackQuery, state: FSMContext)
             mailing.counted_msg = success_count
             await session.commit()
 
-        # Обновляем количество заблокировавших
-        bot_result = await session.execute(select(UserBot).filter(UserBot.id == bot_id))
-        bot_entry = bot_result.scalars().first()
-        if bot_entry:
-            bot_entry.users_blocked = (bot_entry.users_blocked or 0) + blocked_users_count
-            await session.commit()
+        # Отмечаем, кто заблокировал бота, а кто снова его получает
+        await mark_blocked_users(session, bot_entry.bot_token, blocked_user_ids, delivered_user_ids)
 
     await callback_query.message.edit_text(
     MESSAGES[lang]["mailing_finished"].format(
@@ -565,7 +565,8 @@ async def schedule_mailing_handler(message: Message, state: FSMContext):
         total_users_count = total_users_count.scalar() or 0
         
         # Подсчет доступных пользователей
-        available_users = total_users_count - bot.users_blocked
+        blocked_users_count = await count_blocked_users(session, bot.bot_token)
+        available_users = total_users_count - blocked_users_count
 
         # Проверяем, превышает ли лимит
         if sent_on_target_date + available_users > daily_limit:
@@ -898,6 +899,8 @@ async def return_to_main_menu(message: Message, state: FSMContext, lang):
         )
         total_completed = total_completed_result.scalar() or 0
 
+        blocked_users = await count_blocked_users(session, bot_entry.bot_token)
+
     # Формирование текста сообщения
     message_text = MESSAGES[lang]["mailing_statistics"].format(
         scheduled_today=scheduled_today,
@@ -905,7 +908,7 @@ async def return_to_main_menu(message: Message, state: FSMContext, lang):
         completed_today=completed_today,
         total_completed=total_completed,
         total_users=total_users,
-        blocked_users=bot_entry.users_blocked or 0,
+        blocked_users=blocked_users,
         daily_limit=daily_limit,
         sent_today=sent_today,
         remaining_limit=remaining_limit
@@ -1024,7 +1027,8 @@ async def send_mailing_task(mailing_id):
             return
 
         # Подготовка контента для рассылки
-        blocked_users_count = 0
+        blocked_user_ids = []
+        delivered_user_ids = []
         success_count = 0
         reply_message = mailing.reply_message
         file_ids = mailing.file_id.split(",")  # Медиа-группа хранится как список ID через запятую
@@ -1065,9 +1069,10 @@ async def send_mailing_task(mailing_id):
                     await bot.send_message(chat_id=user.user_id, text=reply_message, parse_mode="Markdown")
 
                 success_count += 1
+                delivered_user_ids.append(user.user_id)
             except Exception as e:
                 if "bot was blocked by the user" in str(e):
-                    blocked_users_count += 1
+                    blocked_user_ids.append(user.user_id)
 
             # Добавляем задержку, чтобы избежать ограничения по запросам
             await asyncio.sleep(0.034)
@@ -1077,8 +1082,7 @@ async def send_mailing_task(mailing_id):
         mailing.counted_msg = success_count
         await session.commit()
 
-        # Обновляем информацию о заблокировавших пользователях
-        bot_entry.users_blocked = (bot_entry.users_blocked or 0) + blocked_users_count
-        await session.commit()
+        # Отмечаем, кто заблокировал бота, а кто снова его получает
+        await mark_blocked_users(session, bot_entry.bot_token, blocked_user_ids, delivered_user_ids)
 
         await bot.session.close()
