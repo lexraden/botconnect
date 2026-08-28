@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI, Request
 from aiogram import types, Bot, Dispatcher
@@ -11,6 +12,42 @@ from handlers import handlers_for_added_bots, ads, go_back, subscription, go_bac
 import uvicorn
 from handlers.menu_handlers import adding_button, editing_buttons, mailing
 from handlers.channels import channels, channel_access, channel_messages, channel_settings, channel_messages_settings
+
+# Токен бота попадает в логи внутри webhook-пути (в том числе в url-кодированном
+# виде), а логи видит любой, у кого есть доступ к проекту
+BOT_TOKEN_PATTERN = re.compile(r"(\d{6,})(:|%3A)([A-Za-z0-9_-]{30,})", re.IGNORECASE)
+
+def mask_bot_tokens(value):
+    if isinstance(value, str):
+        return BOT_TOKEN_PATTERN.sub(r"\1\2***", value)
+    return value
+
+class BotTokenMaskingFilter(logging.Filter):
+    """Заменяет секретную часть токенов ботов на *** во всех записях лога."""
+
+    def filter(self, record):
+        record.msg = mask_bot_tokens(record.msg)
+
+        if isinstance(record.args, dict):
+            record.args = {key: mask_bot_tokens(value) for key, value in record.args.items()}
+        elif record.args:
+            record.args = tuple(mask_bot_tokens(arg) for arg in record.args)
+
+        return True
+
+def mask_tokens_in_logs():
+    """
+    Вешает маскировку на логи uvicorn: у них собственные обработчики,
+    так что настройки основного логирования их не покрывают.
+    """
+    token_filter = BotTokenMaskingFilter()
+    logger_names = ("", "uvicorn", "uvicorn.access", "uvicorn.error", "aiogram", "aiogram.event")
+
+    for name in logger_names:
+        logger = logging.getLogger(name)
+        logger.addFilter(token_filter)
+        for handler in logger.handlers:
+            handler.addFilter(token_filter)
 
 dp_for_added_bots = Dispatcher()
 
@@ -75,6 +112,8 @@ async def setup_main_bot_webhook():
             )
         ]
     )
+
+    mask_tokens_in_logs()
 
     # Регистрация хендлеров для основного бота
     dp.include_router(start.router)
