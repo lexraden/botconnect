@@ -29,8 +29,7 @@ MESSAGES = {
             "👥 <b>Как добавить администраторов в бот?</b>\n"
             "Создайте группу и добавьте туда подключенный бот — тогда все участники смогут отвечать на сообщения.\n\n"
             "🛠 <b>Как изменить приветственное сообщение?</b>\n"
-            "Чтобы изменить приветствие, нажмите кнопку «Настроить бот» и перейдите в раздел «Приветствие».\n\n"
-            "ℹ️ Если возникли вопросы, смотрите <a href='https://example.com'>видео инструкцию</a>."
+            "Чтобы изменить приветствие, нажмите кнопку «Настроить бот» и перейдите в раздел «Приветствие»."
         ),
         "configure_bot": "🛠 Настроить бота",
         "your_bots": "📋 Ваши боты:\n\nВыберите бота для настройки:",
@@ -71,8 +70,7 @@ MESSAGES = {
             "🚦 *Трафик:*\n"
             "   • Пользователей сегодня: {users_today}\n"
             "   • В этом месяце: {users_month}\n"
-            "   • В этом году: {users_year}\n\n"
-            "_Счетчик тех, кто заблокировал бот, обновляется после каждой рассылки._"
+            "   • В этом году: {users_year}"
         ),
         "greeting_not_set": "Приветственное сообщение не установлено.",
         "current_greeting": "Выше указано ваше текущее приветственное сообщение:\n\nДля изменения отправьте новое приветствие. Бот поддерживает фото, видео и кругляшки.",
@@ -267,7 +265,7 @@ MESSAGES = {
         "add_button_greetings": "Добавить кнопку",
         "button_added": "Кнопка успешно добавлена",
         "chat_unbound": "Чат успешно отключен. Сообщения больше не будут пересылаться в него.",
-        "help_button": "По всем вопросам пишите в [бот поддержки](https://t.me/botconnect_sup_bot).\n\nТак же можете посмотреть [видео-инструкцию](https://example.com) для наглядного объяснения.",
+        "help_button": "По всем вопросам пишите в [бот поддержки](https://t.me/botconnect_sup_bot).",
         "pay_subscription": "Оформить подписку",
         "bot_activation_limit_exceeded": (
             "⚠️ *Превышен лимит активных ботов!* \n\n"
@@ -446,7 +444,7 @@ MESSAGES = {
         ),
         "pay_subscription": "Subscribe",
         "month": "month",
-        "help_button": "For any questions, please contact the [support bot](https://t.me/botconnect_sup_bot).\n\nYou can also watch the [video tutorial](https://example.com) for a visual explanation.",
+        "help_button": "For any questions, please contact the [support bot](https://t.me/botconnect_sup_bot).",
         "chat_unbound": "Chat has been successfully disabled. Messages will no longer be forwarded to it.",
         "button_added": "Button was succesfully added",
         "add_button_greetings": "Add Button",
@@ -533,8 +531,7 @@ MESSAGES = {
             "👥 <b>How to add administrators to the bot?</b>\n"
             "Create a group and add the connected bot there — then all members will be able to reply to messages.\n\n"
             "🛠 <b>How to change the welcome message?</b>\n"
-            "To change the greeting, click the «Configure Bot» button and go to the «Greeting» section.\n\n"
-            "ℹ️ If you have any questions, check out the <a href='https://example.com'>video tutorial</a>."
+            "To change the greeting, click the «Configure Bot» button and go to the «Greeting» section."
         ),
         "configure_bot": "🛠 Configure Bot",
         "your_bots": "📋 Your bots:\n\nSelect a bot to configure:",
@@ -576,8 +573,7 @@ MESSAGES = {
             "🚦 *Traffic:*\n"
             "   • Users today: {users_today}\n"
             "   • This month: {users_month}\n"
-            "   • This year: {users_year}\n\n"
-            "_The counter for users who blocked the bot is updated after each mailing._"
+            "   • This year: {users_year}"
         ),
         "greeting_not_set": "Greeting message is not set.",
         "current_greeting": "Here is your current welcome message:\n\nTo change it, send a new greeting. The bot supports photos, videos, and video-notes.",
