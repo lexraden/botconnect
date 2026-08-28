@@ -2,13 +2,11 @@ MESSAGES = {
     "ru": {
         "start_message": (
             "👋 *Добро пожаловать в Bot Connect!*\n\n"
-            "Это конструктор ботов обратной связи в Telegram.\n\n"
-            "Ваш бот будет:\n"
-            "• принимать сообщения от пользователей — вы отвечаете им прямо из своего чата\n"
-            "• встречать новых пользователей приветствием и меню с кнопками\n"
-            "• рассылать сообщения всей базе, в том числе по расписанию\n"
-            "• автоматически принимать заявки в канал и проверять новичков капчей\n"
-            "• собирать статистику пользователей и сообщений\n\n"
+            "Бот принимает заявки на вступление в ваш канал, запоминает всех, кто вступил, "
+            "и позволяет писать им напрямую в личные сообщения.\n\n"
+            "• Заявки принимаются сами, в любое время суток\n"
+            "• Каждый вступивший попадает в вашу базу подписчиков\n"
+            "• Рассылка по всей базе — сразу или по расписанию\n\n"
             "Добавьте своего бота чтобы начать!"
         ),
         "add_bot": "➕ Добавить бот",
@@ -497,13 +495,11 @@ MESSAGES = {
         "enter_reply_link": "Enter link for button",
         "start_message": (
             "👋 *Welcome to Bot Connect!*\n\n"
-            "This is a Telegram feedback bot constructor.\n\n"
-            "Your bot will:\n"
-            "• receive messages from users — you reply to them right from your own chat\n"
-            "• greet new users with a welcome message and a button menu\n"
-            "• send mailings to all your users, on a schedule if you need it\n"
-            "• accept channel join requests automatically and screen newcomers with a captcha\n"
-            "• collect statistics on users and messages\n\n"
+            "The bot accepts join requests to your channel, remembers everyone who joined, "
+            "and lets you message them directly.\n\n"
+            "• Join requests are accepted on their own, around the clock\n"
+            "• Everyone who joins is added to your subscriber base\n"
+            "• Mailings to the whole base — right away or on a schedule\n\n"
             "Add your bot to get started!"
         ),
         "add_bot": "➕ Add Bot",
