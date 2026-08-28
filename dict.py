@@ -113,6 +113,7 @@ MESSAGES = {
         "create_mailing": "Создать рассылку",
         "scheduled": "Запланировано",
         "default_greeting": "Приветственное сообщение не установлено.",
+        "greeting_fallback": "👋 Здравствуйте! Напишите ваше сообщение, и мы ответим вам здесь.",
         "send": "Отправить",
         "schedule": "Запланировать",
         "confirm_mailing": (
@@ -608,6 +609,7 @@ MESSAGES = {
         "create_mailing": "Create mailing",
         "scheduled": "Scheduled",
         "default_greeting": "Default greeting is not set.",
+        "greeting_fallback": "👋 Hello! Send us your message and we will reply right here.",
         "send": "Send",
         "schedule": "Schedule",
         "confirm_mailing": (

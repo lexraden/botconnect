@@ -365,13 +365,26 @@ async def start_command(message: Message, state: FSMContext):
             select(UserBot).filter(UserBot.bot_token == message.bot.token)
         )
         bot = result_bot.scalars().first()
+
+        if not bot:
+            return
+
         greeting_message = bot.greeting_message
         greeting_file = bot.greeting_file
         
         # Замена переменных %name% и %id% на данные пользователя
         user_name = message.from_user.full_name
         user_id = message.from_user.id
-        greeting_message = greeting_message.replace("%name%", user_name).replace("%id%", str(user_id))
+        greeting_message = (greeting_message or "").replace("%name%", user_name).replace("%id%", str(user_id))
+
+        # Приветствие может быть не задано: с медиа отправляем его без подписи,
+        # а иначе -- текст по умолчанию, иначе боту нечего ответить на /start
+        if not greeting_message:
+            if greeting_file:
+                greeting_message = None
+            else:
+                user_lang = message.from_user.language_code if message.from_user.language_code in ("ru", "en") else "en"
+                greeting_message = MESSAGES[user_lang]["greeting_fallback"]
 
         # Извлечение кнопок
         result_buttons = await session.execute(

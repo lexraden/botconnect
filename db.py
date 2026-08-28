@@ -252,7 +252,13 @@ async def create_tables():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE"
             )
         )
-        await cleanup_private_chat_channels(conn)
+
+    # Чистка идет отдельной транзакцией: если она не удалась, приложение все равно должно запуститься
+    try:
+        async with engine.begin() as conn:
+            await cleanup_private_chat_channels(conn)
+    except Exception as e:
+        print(f"Не удалось удалить каналы, созданные из личных чатов: {e}")
 
 # Удаляем каналы, ошибочно созданные из личных чатов: у настоящих каналов и групп
 # Telegram выдает отрицательный id, положительный id есть только у личных чатов
