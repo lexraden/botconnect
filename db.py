@@ -252,6 +252,28 @@ async def create_tables():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE"
             )
         )
+        await cleanup_private_chat_channels(conn)
+
+# Удаляем каналы, ошибочно созданные из личных чатов: у настоящих каналов и групп
+# Telegram выдает отрицательный id, положительный id есть только у личных чатов
+async def cleanup_private_chat_channels(conn):
+    junk_channels = "SELECT id FROM bots_channels WHERE channel_id > 0"
+
+    await conn.execute(
+        sqlalchemy.text(
+            "DELETE FROM channel_message_buttons WHERE message_id IN "
+            f"(SELECT id FROM channel_messages WHERE channel_id IN ({junk_channels}))"
+        )
+    )
+    await conn.execute(
+        sqlalchemy.text(f"DELETE FROM channel_messages WHERE channel_id IN ({junk_channels})")
+    )
+    result = await conn.execute(
+        sqlalchemy.text("DELETE FROM bots_channels WHERE channel_id > 0")
+    )
+
+    if result.rowcount:
+        print(f"Удалено каналов, созданных из личных чатов: {result.rowcount}")
 
 # Функция для получения сессии
 async def get_db_session() -> AsyncSession:
