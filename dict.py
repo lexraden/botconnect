@@ -708,6 +708,15 @@ MESSAGES = {
         "payment_failed": "Payment failed.",
         "payment_successful": "Payment successfully completed. You are subscribed to the bot {bot_username} until {end_date}.",
         "invoice_not_found": "Invoice not found. The record has been removed from pending payments.",
-        "export_users": "📥 Export users"
+        "export_users": "📥 Export users",
+        "setup_channel": "Configure channel",
+        "deleted_channel": "Channel {channel_name} has been deleted",
+        "bot_delete_button": "🗑️ Delete bot",
+        "bot_delete_asnwer": "Are you sure you want to delete the bot {bot_name}?\n\n",
+        "accept_bot_delete": "✅ Yes, delete",
+        "bot_deleted_message": "Bot {bot_name} has been deleted",
+        "bot_has_subscription": "You have a subscription for this bot. If you delete the bot, the subscription is lost along with it",
+        "change_message_content_text": "Send a new message to replace the old one\n\nIf you replace a message that had one media file with a message containing several, its URL buttons will not be shown",
+        "month3": "months"
     }
 }
