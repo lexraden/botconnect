@@ -296,11 +296,16 @@ async def send_mailing_handler(callback_query: CallbackQuery, state: FSMContext)
 
     # Проверка на оставшийся лимит
     if remaining_limit <= 0:
+        async with await get_db_session() as session:
+            blocked_users_count = await count_blocked_users(session, bot_entry.bot_token)
+
         await callback_query.message.edit_text(
             MESSAGES[lang]["daily_limit_reached"].format(
                 user_limit=user_limit,
                 sent_today_count=sent_today_count,
-            )
+                not_reached=max(0, len(bot_users) - blocked_users_count),
+            ),
+            parse_mode="Markdown"
         )
         await state.update_data(bot_id=bot_id, previous_state = BotSettingsStates.bot_settings_menu)
         await callback_query.answer()
@@ -403,12 +408,12 @@ async def send_mailing_handler(callback_query: CallbackQuery, state: FSMContext)
                         reply_markup=keyboard
                     )
             else:
-                # Отправка текста
+                # Отправка текста. keyboard здесь уже готовая клавиатура или None
                 await callback_query.message.bot.send_message(
                     chat_id=user.user_id,
                     text=reply_message,
                     parse_mode="Markdown",
-                    reply_markup=keyboard.as_markup()
+                    reply_markup=keyboard
                 )
             success_count += 1
             delivered_user_ids.append(user.user_id)
@@ -433,12 +438,27 @@ async def send_mailing_handler(callback_query: CallbackQuery, state: FSMContext)
         # Отмечаем, кто заблокировал бота, а кто снова его получает
         await mark_blocked_users(session, bot_entry.bot_token, blocked_user_ids, delivered_user_ids)
 
-    await callback_query.message.edit_text(
-    MESSAGES[lang]["mailing_finished"].format(
-        success_count=success_count,
-        blocked_users_count=blocked_users_count,
-    )
+    # Кому рассылка не досталась, потому что лимит закончился раньше.
+    # Считаем от активной базы, как и на экране рассылок
+    async with await get_db_session() as session:
+        total_blocked = await count_blocked_users(session, bot_entry.bot_token)
+
+    not_reached = max(0, len(bot_users) - total_blocked - success_count)
+
+    if not_reached:
+        message_text = MESSAGES[lang]["mailing_finished_limited"].format(
+            success_count=success_count,
+            blocked_users_count=blocked_users_count,
+            not_reached=not_reached,
+            daily_limit=user_limit,
         )
+    else:
+        message_text = MESSAGES[lang]["mailing_finished"].format(
+            success_count=success_count,
+            blocked_users_count=blocked_users_count,
+        )
+
+    await callback_query.message.edit_text(message_text, parse_mode="Markdown")
     await state.clear()
     await return_to_main_menu(callback_query.message, state, lang)
     await callback_query.answer()
@@ -901,6 +921,9 @@ async def return_to_main_menu(message: Message, state: FSMContext, lang):
 
         blocked_users = await count_blocked_users(session, bot_entry.bot_token)
 
+        # Сколько подписчиков не получат рассылку, потому что уперлись в лимит
+        not_reached = max(0, total_users - blocked_users - remaining_limit)
+
     # Формирование текста сообщения
     message_text = MESSAGES[lang]["mailing_statistics"].format(
         scheduled_today=scheduled_today,
@@ -911,7 +934,8 @@ async def return_to_main_menu(message: Message, state: FSMContext, lang):
         blocked_users=blocked_users,
         daily_limit=daily_limit,
         sent_today=sent_today,
-        remaining_limit=remaining_limit
+        remaining_limit=remaining_limit,
+            not_reached=not_reached
         )
 
     # Создание клавиатуры

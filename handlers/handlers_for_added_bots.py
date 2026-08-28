@@ -230,6 +230,9 @@ async def start_command(message: Message, state: FSMContext):
 
             blocked_users = await count_blocked_users(session, bot_entry.bot_token)
 
+            # Сколько подписчиков не получат рассылку, потому что уперлись в лимит
+            not_reached = max(0, total_users - blocked_users - remaining_limit)
+
             message_text = MESSAGES[lang]["mailing_statistics"].format(
                 scheduled_today=scheduled_today,
                 total_scheduled=total_scheduled,
@@ -239,7 +242,8 @@ async def start_command(message: Message, state: FSMContext):
                 blocked_users=blocked_users,
                 daily_limit=daily_limit,
                 sent_today=sent_today,
-                remaining_limit=remaining_limit
+                remaining_limit=remaining_limit,
+                not_reached=not_reached
         )
 
             # Создание клавиатуры

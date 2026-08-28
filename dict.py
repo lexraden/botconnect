@@ -1,9 +1,9 @@
 MESSAGES = {
     "ru": {
         "start_message": (
-            "👋 *Добро пожаловать в Bot Connect!*\n\n"
-            "Бот принимает заявки на вступление в ваш канал, запоминает всех, кто вступил, "
-            "и позволяет писать им напрямую в личные сообщения.\n\n"
+            "👋 *Приём заявок в канал*\n\n"
+            "Подключите бота к своему каналу — он будет сам одобрять заявки на вступление, "
+            "запоминать всех, кто вступил, и вы сможете писать им напрямую в личные сообщения.\n\n"
             "• Заявки принимаются сами, в любое время суток\n"
             "• Каждый вступивший попадает в вашу базу подписчиков\n"
             "• Рассылка по всей базе — сразу или по расписанию\n\n"
@@ -13,7 +13,7 @@ MESSAGES = {
         "my_bots": "📋 Мои боты",
         "help": "❓ Помощь",
         "ads": "📢 Реклама",
-        "pro_subscription": "⭐ Bot Connect PRO",
+        "pro_subscription": "⭐ PRO-подписка",
         "add_bot_instructions": (
             "👨‍💻 *Чтобы подключить бот, Вам нужно выполнить два действия:*\n\n"
             "1️⃣ Перейдите в [@BotFather](https://t.me/BotFather) и создайте новый бот.\n"
@@ -22,7 +22,7 @@ MESSAGES = {
         ),
         "invalid_token": "❌ Неверный токен или бот уже используется. Пожалуйста, проверьте токен.",
         "bot_connected": (
-            "✅ Бот @{bot_username} успешно подключен к Bot Connect.\n\n"
+            "✅ Бот @{bot_username} успешно подключен.\n\n"
             "📨 Отправьте боту любое сообщение и попробуйте ответить на него.\n\n"
             "📋 <b>Как отвечать на входящие сообщения?</b>\n"
             "Просто используйте функцию Ответить или двойной клик по сообщению.\n\n"
@@ -105,7 +105,8 @@ MESSAGES = {
             "✉️ *Лимиты:*\n"
             "   • Лимит отправки: {daily_limit} сбщ./сутки\n"
             "   • Отправлено сегодня: {sent_today} сбщ.\n"
-            "   • Можно отправить сегодня: {remaining_limit} сбщ.\n\n"
+            "   • Можно отправить сегодня: {remaining_limit} сбщ.\n"
+            "   • Не хватит лимита на: {not_reached} чел.\n\n"
             "Начало дня отсчитывается по МСК (UTC+3)."
         ),
         "create_mailing": "Создать рассылку",
@@ -120,12 +121,22 @@ MESSAGES = {
         ),
         "daily_limit_reached": (
             "Лимит отправки {user_limit} сообщений в сутки исчерпан. "
-            "Вы уже отправили {sent_today_count} сообщений."
+            "Вы уже отправили {sent_today_count} сообщений.\n\n"
+            "⚠️ *{not_reached} ваших подписчиков сегодня не получат рассылку.*\n"
+            "С подпиской PRO лимит — 50 000 сообщений в сутки."
         ),
         "mailing_finished": (
             "Рассылка завершена.\n"
             "Успешно отправлено: {success_count} пользователям.\n"
             "Бота заблокировали: {blocked_users_count} пользователей."
+        ),
+        "mailing_finished_limited": (
+            "Рассылка завершена.\n"
+            "Успешно отправлено: {success_count} пользователям.\n"
+            "Бота заблокировали: {blocked_users_count} пользователей.\n\n"
+            "⚠️ *Ещё {not_reached} подписчиков не получили это сообщение* — на них не хватило "
+            "дневного лимита в {daily_limit} сбщ.\n"
+            "С подпиской PRO лимит — 50 000 сообщений в сутки."
         ),
         "schedule_mailing_prompt": (
             "Напишите время (по МСК), в которое необходимо выложить пост, в любом из следующих форматов:\n\n"
@@ -494,9 +505,9 @@ MESSAGES = {
         ),
         "enter_reply_link": "Enter link for button",
         "start_message": (
-            "👋 *Welcome to Bot Connect!*\n\n"
-            "The bot accepts join requests to your channel, remembers everyone who joined, "
-            "and lets you message them directly.\n\n"
+            "👋 *Auto Accept Users*\n\n"
+            "Connect the bot to your channel — it approves join requests on its own, "
+            "remembers everyone who joined, and lets you message them directly.\n\n"
             "• Join requests are accepted on their own, around the clock\n"
             "• Everyone who joins is added to your subscriber base\n"
             "• Mailings to the whole base — right away or on a schedule\n\n"
@@ -506,7 +517,7 @@ MESSAGES = {
         "my_bots": "📋 My Bots",
         "help": "❓ Help",
         "ads": "📢 Ads",
-        "pro_subscription": "⭐ Bot PRO",
+        "pro_subscription": "⭐ PRO subscription",
         "add_bot_instructions": (
             "👨‍💻 *To connect a bot, you need to perform two steps:*\n\n"
             "1️⃣ Go to [@BotFather](https://t.me/BotFather) and create a new bot.\n"
@@ -515,7 +526,7 @@ MESSAGES = {
         ),
         "invalid_token": "❌ Invalid token or the bot is already in use. Please check the token.",
         "bot_connected": (
-            "✅ Bot @{bot_username} has been successfully connected to Bot Connect.\n\n"
+            "✅ Bot @{bot_username} has been successfully connected.\n\n"
             "📨 Send any message to the bot and try replying to it.\n\n"
             "📋 <b>How to reply to incoming messages?</b>\n"
             "Simply use the Reply function or double-click on the message.\n\n"
@@ -599,7 +610,8 @@ MESSAGES = {
             "✉️ *Limits:*\n"
             "   • Daily sending limit: {daily_limit} msgs./day\n"
             "   • Sent today: {sent_today} msgs.\n"
-            "   • Remaining today: {remaining_limit} msgs.\n\n"
+            "   • Remaining today: {remaining_limit} msgs.\n"
+            "   • Not enough limit for: {not_reached} people\n\n"
             "The day starts at MSK (UTC+3)."
         ),
         "create_mailing": "Create mailing",
@@ -614,12 +626,22 @@ MESSAGES = {
         ),
         "daily_limit_reached": (
             "The daily limit of {user_limit} messages has been reached. "
-            "You have already sent {sent_today_count} messages."
+            "You have already sent {sent_today_count} messages.\n\n"
+            "⚠️ *{not_reached} of your subscribers will not get this mailing today.*\n"
+            "PRO raises the limit to 50,000 messages per day."
         ),
         "mailing_finished": (
             "Mailing completed.\n"
             "Successfully sent to: {success_count} users.\n"
             "Bot was blocked by: {blocked_users_count} users."
+        ),
+        "mailing_finished_limited": (
+            "Mailing finished.\n"
+            "Delivered to {success_count} users.\n"
+            "Blocked the bot: {blocked_users_count} users.\n\n"
+            "⚠️ *Another {not_reached} subscribers did not get this message* — the daily limit "
+            "of {daily_limit} msgs. ran out.\n"
+            "PRO raises the limit to 50,000 messages per day."
         ),
         "schedule_mailing_prompt": (
             "Specify the time (in MSK) for posting in any of the following formats:\n\n"
