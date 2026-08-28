@@ -263,23 +263,55 @@ async def create_tables():
 # Удаляем каналы, ошибочно созданные из личных чатов: у настоящих каналов и групп
 # Telegram выдает отрицательный id, положительный id есть только у личных чатов
 async def cleanup_private_chat_channels(conn):
-    junk_channels = "SELECT id FROM bots_channels WHERE channel_id > 0"
+    junk = await conn.execute(
+        sqlalchemy.text("SELECT id FROM bots_channels WHERE channel_id > 0")
+    )
+    channel_ids = [row[0] for row in junk]
 
+    if not channel_ids:
+        return
+
+    try:
+        # Сначала пробуем удалить все разом
+        async with conn.begin_nested():
+            await delete_channels(conn, channel_ids)
+        removed = len(channel_ids)
+    except Exception as e:
+        # Если что-то в базе ссылается на один из каналов, удаляем по одному,
+        # чтобы такая запись не помешала вычистить все остальные
+        print(f"Не удалось удалить каналы одним запросом ({e}), удаляем по одному")
+        removed = 0
+        for channel_id in channel_ids:
+            try:
+                async with conn.begin_nested():
+                    await delete_channels(conn, [channel_id])
+                removed += 1
+            except Exception as e:
+                print(f"Не удалось удалить канал {channel_id}: {e}")
+
+    print(f"Удалено каналов, созданных из личных чатов: {removed} из {len(channel_ids)}")
+
+async def delete_channels(conn, channel_ids):
+    params = {"channel_ids": tuple(channel_ids)}
     await conn.execute(
         sqlalchemy.text(
             "DELETE FROM channel_message_buttons WHERE message_id IN "
-            f"(SELECT id FROM channel_messages WHERE channel_id IN ({junk_channels}))"
-        )
+            "(SELECT id FROM channel_messages WHERE channel_id IN :channel_ids)"
+        ).bindparams(sqlalchemy.bindparam("channel_ids", expanding=True)),
+        params
     )
     await conn.execute(
-        sqlalchemy.text(f"DELETE FROM channel_messages WHERE channel_id IN ({junk_channels})")
+        sqlalchemy.text(
+            "DELETE FROM channel_messages WHERE channel_id IN :channel_ids"
+        ).bindparams(sqlalchemy.bindparam("channel_ids", expanding=True)),
+        params
     )
-    result = await conn.execute(
-        sqlalchemy.text("DELETE FROM bots_channels WHERE channel_id > 0")
+    await conn.execute(
+        sqlalchemy.text(
+            "DELETE FROM bots_channels WHERE id IN :channel_ids"
+        ).bindparams(sqlalchemy.bindparam("channel_ids", expanding=True)),
+        params
     )
-
-    if result.rowcount:
-        print(f"Удалено каналов, созданных из личных чатов: {result.rowcount}")
 
 # Функция для получения сессии
 async def get_db_session() -> AsyncSession:
