@@ -315,7 +315,7 @@ async def handle_user_leave_chat(event: ChatMemberUpdated, bot: Bot):
     
     async with await get_db_session() as session:
         user_result = await session.execute(
-            select(User).filter(User.user_id == user_id)
+            select(User).filter(User.user_id == user_id, User.bot_token == bot.token)
         )
         user = user_result.scalars().first()
 

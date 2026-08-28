@@ -57,8 +57,9 @@ class User(Base):
     last_name = Column(String, nullable=True)                                         # Фамилия пользователя
     language_code = Column(String, nullable=True)                                     # Язык пользователя
     bot_token = Column(String, ForeignKey('user_bots.bot_token'), nullable=False)     # Токен бота
-    from_chat_id = Column(BigInteger, nullable=True, default=None)                    # В какой чат добавлялся пользователь 
+    from_chat_id = Column(BigInteger, nullable=True, default=None)                    # В какой чат добавлялся пользователь
     is_banned = Column(Boolean, default=False, nullable = True)                       # Забанен ли пользователь
+    is_blocked = Column(Boolean, default=False, nullable = True)                      # Заблокировал ли пользователь бота
     created_at = Column(DateTime, server_default=func.now())                          # Время добавления пользователя
 
     bot = relationship('UserBot', back_populates='users')  # Связь с моделью UserBot
@@ -246,6 +247,11 @@ async def create_tables():
                 "ALTER TABLE bots_channels ADD COLUMN IF NOT EXISTS captcha_button_text VARCHAR DEFAULT NULL"
             )
         )
+        await conn.execute(
+            sqlalchemy.text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE"
+            )
+        )
 
 # Функция для получения сессии
 async def get_db_session() -> AsyncSession:
@@ -268,6 +274,65 @@ async def get_lang(user_id: int):
         result = await session.execute(select(MainBotUser).filter(MainBotUser.user_id == user_id))
         lang = result.scalars().first()
         return lang.language_code if lang else None
+
+# Отмечаем, что пользователь заблокировал бота (или разблокировал его)
+async def set_user_blocked(bot_token: str, user_id: int, blocked: bool):
+    async with await get_db_session() as session:
+        result = await session.execute(
+            select(User).filter(User.user_id == user_id, User.bot_token == bot_token)
+        )
+        user = result.scalars().first()
+
+        if not user or bool(user.is_blocked) == blocked:
+            return
+
+        user.is_blocked = blocked
+        try:
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            print(f"Ошибка при обновлении статуса блокировки пользователя {user_id}: {e}")
+
+# Массовое обновление статуса блокировки по результатам рассылки
+async def mark_blocked_users(session: AsyncSession, bot_token: str, blocked_user_ids: list, delivered_user_ids: list):
+    updates = (
+        (blocked_user_ids, True),
+        (delivered_user_ids, False),
+    )
+    changed = False
+
+    for user_ids, blocked in updates:
+        if not user_ids:
+            continue
+        await session.execute(
+            sqlalchemy.update(User)
+            .where(
+                User.bot_token == bot_token,
+                User.user_id.in_(user_ids),
+                User.is_blocked.is_not(blocked)
+            )
+            .values(is_blocked=blocked)
+        )
+        changed = True
+
+    if not changed:
+        return
+
+    try:
+        await session.commit()
+    except Exception as e:
+        await session.rollback()
+        print(f"Ошибка при обновлении статуса блокировки пользователей: {e}")
+
+# Количество пользователей, заблокировавших бота
+async def count_blocked_users(session: AsyncSession, bot_token: str) -> int:
+    result = await session.execute(
+        select(func.count(User.id)).filter(
+            User.bot_token == bot_token,
+            User.is_blocked == True
+        )
+    )
+    return result.scalar() or 0
 
 async def save_user_for_bot(message: types.Message, bot_token: str):
     async with await get_db_session() as session:

@@ -9,7 +9,7 @@ from aiogram.filters import CommandStart
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import update, delete, func
 from sqlalchemy.future import select
-from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, Mailing, User, get_lang, BotSubscription, Channels, ChannelMessage, ChannelMessageButton
+from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, Mailing, User, get_lang, BotSubscription, Channels, ChannelMessage, ChannelMessageButton, count_blocked_users
 from config import media_group_tasks, media_groups, dp
 from datetime import datetime
 from handlers.menu_handlers.adding_button import BotSettingsStates
@@ -407,6 +407,8 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
             )
             total_completed = total_completed_result.scalar() or 0
 
+            blocked_users = await count_blocked_users(session, bot_entry.bot_token)
+
         # Формирование текста сообщения
         message_text = MESSAGES[lang]["mailing_statistics"].format(
                 scheduled_today=scheduled_today,
@@ -414,7 +416,7 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
                 completed_today=completed_today,
                 total_completed=total_completed,
                 total_users=total_users,
-                blocked_users=bot_entry.users_blocked or 0,
+                blocked_users=blocked_users,
                 daily_limit=daily_limit,
                 sent_today=sent_today,
                 remaining_limit=remaining_limit

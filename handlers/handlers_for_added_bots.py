@@ -9,13 +9,20 @@ from aiogram.filters import CommandStart, Command
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import update, delete, func
 from sqlalchemy.future import select
-from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, User, Mailing, BotSubscription, get_lang
+from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, User, Mailing, BotSubscription, get_lang, set_user_blocked, count_blocked_users
 from dict import MESSAGES
 from datetime import datetime
 from config import WEBHOOK_TUNNEL_URL
 from handlers.menu_handlers.adding_button import BotSettingsStates
 
 router = Router()
+
+# Пользователь заблокировал или разблокировал бота: в личных чатах Telegram
+# присылает my_chat_member со статусом "kicked" (блокировка) или "member" (возврат)
+@router.my_chat_member(F.chat.type == "private")
+async def track_bot_blocked(event: types.ChatMemberUpdated, bot: Bot):
+    blocked = event.new_chat_member.status == "kicked"
+    await set_user_blocked(bot.token, event.from_user.id, blocked)
 
 class NotReplyAndNotButtonFilter(Filter):
     async def __call__(self, message: types.Message) -> bool:
@@ -221,13 +228,15 @@ async def start_command(message: Message, state: FSMContext):
             )
             total_completed = total_completed_result.scalar() or 0
 
+            blocked_users = await count_blocked_users(session, bot_entry.bot_token)
+
             message_text = MESSAGES[lang]["mailing_statistics"].format(
                 scheduled_today=scheduled_today,
                 total_scheduled=total_scheduled,
                 completed_today=completed_today,
                 total_completed=total_completed,
                 total_users=total_users,
-                blocked_users=bot_entry.users_blocked or 0,
+                blocked_users=blocked_users,
                 daily_limit=daily_limit,
                 sent_today=sent_today,
                 remaining_limit=remaining_limit
