@@ -4,6 +4,20 @@
  * accessors throw only when a feature that needs the secret is actually used.
  */
 
+/**
+ * Secret with a development-only fallback. In production a missing secret is
+ * fatal: the fallback is public (it is right here in the source), so serving
+ * with it would let anyone forge a session cookie or decrypt stored bot tokens.
+ */
+function secret(name: string, alias: string, devFallback: string): string {
+  const v = process.env[name] || process.env[alias];
+  if (v) return v;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(`Environment variable ${name} is required in production`);
+  }
+  return devFallback;
+}
+
 function req(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`Environment variable ${name} is required`);
@@ -28,10 +42,10 @@ export const env = {
   },
   /** 32-byte key (hex or base64) used to encrypt bot tokens at rest. */
   get encryptionKey(): string {
-    return process.env.ENCRYPTION_KEY || process.env.SESSION_SECRET || "dev-insecure-key-change-me";
+    return secret("ENCRYPTION_KEY", "SESSION_SECRET", "dev-insecure-key-change-me");
   },
   get sessionSecret(): string {
-    return process.env.SESSION_SECRET || process.env.ENCRYPTION_KEY || "dev-insecure-secret-change-me";
+    return secret("SESSION_SECRET", "ENCRYPTION_KEY", "dev-insecure-secret-change-me");
   },
   get cronSecret(): string | undefined {
     return process.env.CRON_SECRET || undefined;
