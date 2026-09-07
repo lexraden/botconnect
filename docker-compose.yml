@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/app_db
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Calls the cron endpoint every minute (mailings, payments reconciliation, cleanup)
+  cron:
+    image: curlimages/curl:latest
+    env_file: .env
+    depends_on: [app]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - while true; do curl -fsS -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron || true; sleep 60; done
+
+volumes:
+  pgdata:

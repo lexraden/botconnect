@@ -1,122 +1,135 @@
-# Bot Connect - Telegram Bot Constructor
+# Bot Connect v2 — конструктор Telegram-ботов с веб-панелью
 
-Bot Connect is a Telegram bot constructor that allows users to create and manage feedback bots with ease. This repository contains the source code for the Bot Connect application.
+> **v2 — полная переработка.** Весь код v1 (Python / aiogram / FastAPI, ~10 400 строк
+> Telegram-меню) заменён на **Next.js 16 (App Router) + Drizzle ORM + PostgreSQL**
+> с веб-панелью управления и stateless-обработкой вебхуков.
 
----
+Bot Connect позволяет за 30 секунд подключить бота из @BotFather и получить:
 
-## Table of Contents
-
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running the Application](#running-the-application)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Features
-
-- Create and manage multiple Telegram bots.
-- Configure bot settings such as greetings, menus, and subscriptions.
-- Support for handling user feedback and messages.
-- Subscription system for additional features (e.g., ad-free experience, increased message limits).
-- Scalable architecture using `aiogram` and `FastAPI`.
+| Модуль | Что умеет |
+|---|---|
+| 💬 **Обратная связь** | Сообщения пользователей копируются в вашу группу; ответ reply'ем уходит обратно пользователю. Бан/разбан кнопкой или `/ban`, `/unban`, `/fileid`. |
+| 🧩 **Меню** | Inline- и reply-кнопки, вложенные разделы с «Назад», URL-кнопки, привязка к `/командам`, медиа-вложения, действие «заменить сообщение». |
+| 📣 **Рассылки** | Мгновенные и отложенные, с кнопкой-ссылкой и вложением. Пакетная отправка с курсором (возобновляемая), учёт заблокировавших, дневные лимиты FREE/PRO. |
+| 🛡️ **Каналы** | Автоподключение при добавлении бота админом, автоприём заявок, капча, приветствия/прощания по языкам с кнопками, `{name}`/`{username}`. |
+| 💳 **Подписка** | Тарифы в USDT через @CryptoBot: создание счёта, подписанный вебхук `invoice_paid`, фолбэк-сверка в кроне, продление «встык». |
+| 🔐 **Вход** | Telegram Login Widget **или** magic-link из главного бота (`/login`). Без паролей. |
 
 ---
 
-## Prerequisites
+## Что было не так в v1 и как это решено в v2
 
-Before running the application, ensure you have the following installed:
+### Безопасность
+| v1 | v2 |
+|---|---|
+| Токен бота в URL вебхука `/bot/{token}` → утекал в access-логи (в репо даже был фильтр-маскировщик логов) | URL содержит только внутренний `botId`; подлинность проверяется заголовком `X-Telegram-Bot-Api-Secret-Token` (уникальный секрет на бота) |
+| Токены в БД открытым текстом | AES-256-GCM (`ENCRYPTION_KEY`), в UI токен не показывается |
+| `bot_token` — внешний ключ в `users`, `bot_menu_buttons` → нельзя перевыпустить токен | Все связи по `bots.id`; повторное подключение бота с новым токеном просто ротирует токен и секрет |
+| Любой POST на `/bot/{что угодно}` создавал `Bot()` и обрабатывал апдейт | 404 / 403 до какой-либо обработки; идемпотентность по `update_id` (Telegram ретраит апдейты) |
+| Главный бот и подключённые боты — один вебхук-роут | Разделены; главный бот — отдельный секрет |
 
-- Python 3.9 or higher
-- PostgreSQL database (or any other supported database)
-- `pip` package manager
-- `uvicorn` for running the FastAPI application
+### Логика
+| v1 | v2 |
+|---|---|
+| `process_scheduled_mailings` содержит `while True`, и его же вызывают в `while True` из `main.py` (вложенный бесконечный цикл) | HTTP-крон `GET /api/cron` раз в минуту; атомарный захват рассылки через `FOR UPDATE SKIP LOCKED` — несколько воркеров не отправят одно и то же дважды |
+| Проверка подписки не смотрела на `end_date` → истёкшая подписка давала лимит 50 000 | `getActiveSubscription` фильтрует `ends_at > now()`; лимиты считаются от активной подписки |
+| Polling всех pending-платежей каждые 60 с, без TTL | Вебхук CryptoBot с проверкой HMAC-подписи; счета с TTL 1 ч; сверка только «живых» счетов |
+| `channel_id` уникален глобально — канал нельзя подключить к двум ботам | Уникальность `(bot_id, chat_id)` |
+| `len(result.scalars().all())` для подсчёта, naive MSK-время вперемешку с UTC, `datetime.utcnow()` | `COUNT(*)`, `timestamptz` везде, `numeric` для денег |
+| Ответ админа искался по метаданным forward (ломается у пользователей со скрытым аккаунтом) | Таблица `forwarded_messages` — точное сопоставление `admin_message_id → user` |
 
----
-
-## Installation
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/Fluorouacil/bot_construct.git
-   cd bot-connect
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Set up the database**:
-   - Create a PostgreSQL database or use an existing one.
-   - Update the database connection details in `config.py` (see [Configuration](#configuration)).
-
----
-
-## Configuration
-
-All configuration settings are stored in the `config.py` file. You need to update the following fields:
-
-### Required Settings
-
-- **Telegram API Token**:
-  ```python
-  TELEGRAM_API_TOKEN = "your_telegram_bot_api_token"
-  ```
-  Replace `your_telegram_bot_api_token` with the token provided by [@BotFather](https://t.me/BotFather).
-
-- **Database Connection String**:
-  ```python
-  DATABASE_URL = "postgresql+asyncpg://username:password@localhost:5432/your_database_name"
-  ```
-  Replace `username`, `password`, and `your_database_name` with your PostgreSQL credentials.
-
-- **Webhook URL**:
-  ```python
-  WEBHOOK_URL = "https://yourdomain.com/webhook"
-  ```
-  Replace `https://yourdomain.com/webhook` with the public URL where Telegram will send updates.
-
-### Optional Settings
-
-- **Other Custom Settings**:
-  Add any additional settings required for your application.
+### Архитектура и эксплуатация
+| v1 | v2 |
+|---|---|
+| `MemoryStorage` FSM + фоновые задачи в процессе → один инстанс, всё теряется при рестарте | Полностью stateless: любое число инстансов / serverless, состояние — только в PostgreSQL |
+| Файлы по 900–1100 строк (`go_back.py` — 909 строк навигации по меню) | Вся настройка — веб-панель (server actions); обработчик Telegram ~500 строк |
+| `Base.metadata.create_all` + ad-hoc `ALTER TABLE` в коде | Drizzle-схема + SQL-миграции в `drizzle/` |
+| Нет тестов, CI, Dockerfile, типов | TypeScript strict, ESLint, GitHub Actions, Dockerfile, docker-compose (app + db + cron), `vercel.json` с кроном |
+| `aiogram` держал aiohttp-сессии на каждый вебхук (не закрывались) | Тонкий fetch-клиент Bot API без long-lived сессий, `retry_after` для 429 |
 
 ---
 
-## Running the Application
-
-To start the application, use the following command:
+## Быстрый старт (локально)
 
 ```bash
-uvicorn main:app --host 127.0.0.1 --port <WEBHOOK_PORT>
+git clone https://github.com/lexraden/botconnect.git && cd botconnect
+cp .env.example .env            # заполните переменные
+npm ci
+npx drizzle-kit push            # создать таблицы (или: npx drizzle-kit migrate)
+npm run dev                     # http://localhost:3000
 ```
 
-Replace `<WEBHOOK_PORT>` with the port number specified in `config.py`.
+Для локальной разработки без Telegram-логина поставьте `ALLOW_DEV_LOGIN=true` —
+на `/login` появится форма входа по Telegram ID. **В продакшене выключите.**
 
-For example:
+Чтобы Telegram доставлял апдейты локально, пробросьте туннель (`ngrok http 3000`) и
+укажите его адрес в `PUBLIC_URL`. После этого на странице бота нажмите «Переподключить вебхук».
+
+## Docker
+
 ```bash
-uvicorn main:app --host 127.0.0.1 --port 8000
+cp .env.example .env && nano .env
+docker compose up -d --build
+docker compose exec app npx drizzle-kit migrate
 ```
 
-### Notes:
-- Ensure that the webhook URL (`WEBHOOK_URL`) is accessible from the internet.
-- If you're running the application locally for testing, you can use tools like [ngrok](https://ngrok.com/) to expose your local server to the internet.
+`docker-compose.yml` поднимает PostgreSQL, приложение и sidecar-крон (curl раз в минуту).
 
----
+## Деплой на Vercel / Railway
 
-## Contributing
+1. Задайте переменные окружения из `.env.example` (`PUBLIC_URL` — ваш HTTPS-домен).
+2. Примените миграции: `npx drizzle-kit migrate` (с `DATABASE_URL` прод-базы).
+3. Крон: на Vercel он уже описан в `vercel.json` и автоматически шлёт `Authorization: Bearer $CRON_SECRET`.
+   На Railway/VPS — любой планировщик:
+   `* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://ваш-домен/api/cron`
+4. Главный бот (опционально, для входа через Telegram): задайте `MAIN_BOT_TOKEN`, `MAIN_BOT_USERNAME`,
+   `MAIN_BOT_WEBHOOK_SECRET`, в @BotFather → `/setdomain` укажите ваш домен, затем один раз установите вебхук:
+   ```bash
+   curl "https://api.telegram.org/bot$MAIN_BOT_TOKEN/setWebhook" \
+     -d url="$PUBLIC_URL/api/telegram/main" -d secret_token="$MAIN_BOT_WEBHOOK_SECRET"
+   ```
+5. Платежи (опционально): создайте приложение в @CryptoBot → Crypto Pay, токен в `CRYPTO_BOT_TOKEN`,
+   вебхук `https://ваш-домен/api/payments/cryptobot`.
 
-We welcome contributions! To contribute:
+## Структура
 
-1. Fork the repository.
-2. Create a new branch for your feature or bug fix.
-3. Commit your changes and push them to your fork.
-4. Submit a pull request with a detailed description of your changes.
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── telegram/bots/[botId]/route.ts   # вебхук подключённых ботов (secret_token)
+│   │   ├── telegram/main/route.ts           # вебхук главного бота (логин)
+│   │   ├── cron/route.ts                    # рассылки, сверка платежей, уборка
+│   │   ├── payments/cryptobot/route.ts      # вебхук CryptoBot (HMAC)
+│   │   ├── auth/{telegram,magic,dev,logout} # аутентификация
+│   │   └── health/route.ts
+│   ├── dashboard/
+│   │   ├── actions.ts                       # все server actions (CRUD)
+│   │   ├── page.tsx                         # список ботов + подключение
+│   │   └── bots/[botId]/{page,buttons,mailings,users,channels,subscription}
+│   ├── login/page.tsx
+│   └── page.tsx                             # лендинг
+├── components/ui.tsx                        # мелкие UI-примитивы
+├── db/{schema.ts,index.ts}                  # Drizzle
+└── lib/
+    ├── telegram/{api,types,handle-update,main-bot}.ts
+    ├── auth.ts  bots.ts  mailing.ts  payments.ts  crypto.ts  env.ts
+drizzle/                                     # SQL-миграции
+```
 
----
+## Переменные окружения
 
-Thank you for using Bot Connect! 🚀
+См. `.env.example`. Обязательные для продакшена: `DATABASE_URL`, `PUBLIC_URL`, `SESSION_SECRET`,
+`ENCRYPTION_KEY`, `CRON_SECRET`. Остальные включают отдельные модули (логин через Telegram, платежи).
+
+## Миграция данных с v1
+
+Таблицы v2 несовместимы с v1 по дизайну (токены зашифрованы, связи по id).
+Скрипт переноса сводится к: для каждой строки `user_bots` → `connectBot(ownerId, bot_token)`
+(проверит токен, зашифрует и поставит вебхук), затем перенести `users` → `bot_users`,
+`bot_menu_buttons` → `menu_buttons` (`bot_token` → `bots.id`), `bots_channels` → `channels`.
+Активные подписки — `bot_subscriptions` с `end_date > now()` → `subscriptions`.
+
+## Лицензия
+
+MIT
