@@ -3,7 +3,7 @@ from aiogram.types import Message, InlineKeyboardButton, CallbackQuery, InputMed
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from db import UserBot, get_db_session, User, get_lang, Mailing, BotMenuButton, BotSubscription, Channels, count_blocked_users
+from db import UserBot, get_db_session, User, get_lang, Mailing, BotMenuButton, BotSubscription, Channels, count_blocked_users, get_active_subscription
 from dict import MESSAGES
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -341,10 +341,7 @@ async def bot_settings_main_menu(callback_query: CallbackQuery, state: FSMContex
             total_users = len(users_result.scalars().all())
 
             # Проверка лимита сообщений
-            has_subscription = await session.execute(
-                select(BotSubscription).filter(BotSubscription.bot_id == bot_entry.id)
-            )
-            has_subscription = has_subscription.scalars().first()
+            has_subscription = await get_active_subscription(session, bot_entry.id)
             daily_limit = 50000 if has_subscription else 100
 
             # Подсчёт отправленных сообщений за сегодня

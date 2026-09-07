@@ -9,7 +9,7 @@ from aiogram.filters import CommandStart
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import update, delete
 from sqlalchemy.future import select
-from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, Mailing, User, get_lang, BotSubscription
+from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, Mailing, User, get_lang, BotSubscription, get_active_subscription
 from config import media_group_tasks, media_groups
 from datetime import datetime
 from handlers.menu_handlers.adding_button import BotSettingsStates
@@ -122,12 +122,7 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
                     return
 
                 # Проверка наличия активной подписки на этого бота
-                active_subscription = await session.execute(
-                    select(BotSubscription).filter(
-                        BotSubscription.bot_id == bot_id
-                    ).order_by(BotSubscription.end_date.desc())
-                )
-                active_subscription = active_subscription.scalars().first()
+                active_subscription = await get_active_subscription(session, bot_id)
 
             if active_subscription:
                 # Если есть активная подписка, показываем информацию о ней

@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import LabeledPrice, PreCheckoutQuery, InlineKeyboardMarkup
 import aiohttp
-from db import UserBot, get_lang, BotMenuButton, Mailing, User, BotSubscription, get_bot_username, get_db_session, PendingPayment
+from db import UserBot, get_lang, BotMenuButton, Mailing, User, BotSubscription, get_bot_username, get_db_session, PendingPayment, get_active_subscription, count_active_subscriptions
 from dict import MESSAGES
 from config import crypto_bot
 from sqlalchemy.exc import IntegrityError
@@ -129,12 +129,7 @@ async def select_subscription_bot(callback_query: types.CallbackQuery, state: FS
                 return
 
             # Проверка наличия активной подписки на этого бота
-            active_subscription = await session.execute(
-                select(BotSubscription).filter(
-                    BotSubscription.bot_id == bot_id
-                ).order_by(BotSubscription.end_date.desc())
-            )
-            active_subscription = active_subscription.scalars().first()
+            active_subscription = await get_active_subscription(session, bot_id)
 
         if active_subscription:
             # Если есть активная подписка, показываем информацию о ней
@@ -555,11 +550,7 @@ async def check_and_remove_expired_subscriptions(bot: Bot):
                     # Считаем количество активных подписок для этих ботов
                     active_subscription_count = 0
                     if user_bots_ids:
-                        active_subscription_count_result = await session.execute(
-                            select(func.count(BotSubscription.id))
-                            .filter(BotSubscription.bot_id.in_(user_bots_ids))
-                        )
-                        active_subscription_count = active_subscription_count_result.scalar() or 0
+                        active_subscription_count = await count_active_subscriptions(session, user_bots_ids)
 
                     # Подсчитываем количество включенных ботов для пользователя
                     active_bots_count = await session.execute(

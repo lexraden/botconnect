@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 from sqlalchemy import update, func, and_, not_, or_
 from config import admins
 from dict import MESSAGES
-from db import UserBot, get_db_session, get_lang, MainBotUser, BotSubscription, User
+from db import UserBot, get_db_session, get_lang, MainBotUser, BotSubscription, User, get_active_subscription, count_active_subscriptions
 from handlers.bot_settings import MainBotSettingsStates
 from handlers.handlers_for_added_bots import add_and_run_new_bot
 from datetime import datetime, timedelta
@@ -455,11 +455,7 @@ async def activate_bot_callback(callback_query: CallbackQuery, state: FSMContext
         # Считаем количество активных подписок для этих ботов
         active_subscription_count = 0
         if user_bots_ids:
-            active_subscription_count_result = await session.execute(
-                select(func.count(BotSubscription.id))
-                .filter(BotSubscription.bot_id.in_(user_bots_ids))
-            )
-            active_subscription_count = active_subscription_count_result.scalar() or 0
+            active_subscription_count = await count_active_subscriptions(session, user_bots_ids)
         
         # Лимит включенных ботов
         bot_limit = 3 + active_subscription_count
@@ -534,8 +530,7 @@ async def bot_delete(callback_query: CallbackQuery, state: FSMContext):
         result = await session.execute(select(UserBot).filter(UserBot.id == bot_id))
         user_bot = result.scalars().first()
         
-        sub_result = await session.execute(select(BotSubscription).filter(BotSubscription.bot_id == bot_id))
-        subscription = sub_result.scalars().first()
+        subscription = await get_active_subscription(session, bot_id)
         
     keyboard = InlineKeyboardBuilder()
     

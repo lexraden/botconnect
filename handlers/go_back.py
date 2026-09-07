@@ -9,7 +9,7 @@ from aiogram.filters import CommandStart
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import update, delete, func
 from sqlalchemy.future import select
-from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, Mailing, User, get_lang, BotSubscription, Channels, ChannelMessage, ChannelMessageButton, count_blocked_users
+from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, Mailing, User, get_lang, BotSubscription, Channels, ChannelMessage, ChannelMessageButton, count_blocked_users, get_active_subscription
 from config import media_group_tasks, media_groups, dp
 from datetime import datetime
 from handlers.menu_handlers.adding_button import BotSettingsStates
@@ -356,10 +356,7 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
             total_users = len(users_result.scalars().all())
 
             # Проверка лимита сообщений
-            has_subscription = await session.execute(
-                select(BotSubscription).filter(BotSubscription.bot_id == bot_entry.id)
-            )
-            has_subscription = has_subscription.scalars().first()
+            has_subscription = await get_active_subscription(session, bot_entry.id)
             daily_limit = 50000 if has_subscription else 100
 
             # Подсчёт отправленных сообщений за сегодня

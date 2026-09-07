@@ -384,6 +384,30 @@ async def mark_blocked_users(session: AsyncSession, bot_token: str, blocked_user
         await session.rollback()
         print(f"Ошибка при обновлении статуса блокировки пользователей: {e}")
 
+# Действующая подписка бота. Истекшие не считаются: раньше их не отсекали,
+# и бот с давно закончившейся подпиской продолжал получать лимиты PRO
+async def get_active_subscription(session: AsyncSession, bot_id: int):
+    result = await session.execute(
+        select(BotSubscription).filter(
+            BotSubscription.bot_id == bot_id,
+            BotSubscription.end_date > datetime.now()
+        ).order_by(BotSubscription.end_date.desc())
+    )
+    return result.scalars().first()
+
+# Сколько из указанных ботов имеют действующую подписку
+async def count_active_subscriptions(session: AsyncSession, bot_ids) -> int:
+    if not bot_ids:
+        return 0
+
+    result = await session.execute(
+        select(func.count(BotSubscription.id)).filter(
+            BotSubscription.bot_id.in_(bot_ids),
+            BotSubscription.end_date > datetime.now()
+        )
+    )
+    return result.scalar() or 0
+
 # Количество пользователей, заблокировавших бота
 async def count_blocked_users(session: AsyncSession, bot_token: str) -> int:
     result = await session.execute(

@@ -9,7 +9,7 @@ from aiogram.filters import CommandStart, Command
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import update, delete, func
 from sqlalchemy.future import select
-from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, User, Mailing, BotSubscription, get_lang, set_user_blocked, count_blocked_users
+from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, User, Mailing, BotSubscription, get_lang, set_user_blocked, count_blocked_users, get_active_subscription, count_active_subscriptions
 from dict import MESSAGES
 from datetime import datetime
 from config import WEBHOOK_TUNNEL_URL
@@ -175,10 +175,7 @@ async def start_command(message: Message, state: FSMContext):
             total_users = len(users_result.scalars().all())
 
             # Проверка лимита сообщений
-            has_subscription = await session.execute(
-                select(BotSubscription).filter(BotSubscription.bot_id == bot_entry.id)
-            )
-            has_subscription = has_subscription.scalars().first()
+            has_subscription = await get_active_subscription(session, bot_entry.id)
             daily_limit = 50000 if has_subscription else 100
 
             # Подсчёт отправленных сообщений за сегодня
@@ -1027,11 +1024,7 @@ async def add_and_run_new_bot(token: str, bot_username: str, user_id: int):
             # Считаем количество активных подписок для этих ботов
             active_subscription_count = 0
             if user_bots_ids:
-                active_subscription_count_result = await session.execute(
-                    select(func.count(BotSubscription.id))
-                    .filter(BotSubscription.bot_id.in_(user_bots_ids))
-                )
-                active_subscription_count = active_subscription_count_result.scalar() or 0
+                active_subscription_count = await count_active_subscriptions(session, user_bots_ids)
 
             # Ограничение на 3 активных бота
             bot_limit = 3 + active_subscription_count

@@ -9,7 +9,7 @@ from aiogram.filters import CommandStart
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import update, delete, func
 from sqlalchemy.future import select
-from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, User, Mailing, BotSubscription, get_lang, count_blocked_users, mark_blocked_users
+from db import UserBot, get_db_session, increment_sent_messages_count, increment_replied_messages_count, BotMenuButton, User, Mailing, BotSubscription, get_lang, count_blocked_users, mark_blocked_users, get_active_subscription
 from dict import MESSAGES
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -273,8 +273,7 @@ async def send_mailing_handler(callback_query: CallbackQuery, state: FSMContext)
         users_result = await session.execute(select(User).filter(User.bot_token == bot_entry.bot_token))
         bot_users = users_result.scalars().all()
 
-        subscription_result = await session.execute(select(BotSubscription).filter(BotSubscription.bot_id == bot_entry.id))
-        have_subscription = subscription_result.scalars().first()
+        have_subscription = await get_active_subscription(session, bot_entry.id)
         
         if have_subscription:
             user_limit = 50000
@@ -560,10 +559,7 @@ async def schedule_mailing_handler(message: Message, state: FSMContext):
             return
 
         # Определение лимита сообщений
-        has_subscription = await session.execute(
-            select(BotSubscription).filter(BotSubscription.bot_id == bot_id)
-        )
-        has_subscription = has_subscription.scalars().first()
+        has_subscription = await get_active_subscription(session, bot_id)
         daily_limit = 50000 if has_subscription else 100
 
         # Подсчет отправленных сообщений за день, на который запланирована рассылка
@@ -866,10 +862,7 @@ async def return_to_main_menu(message: Message, state: FSMContext, lang):
         total_users = len(users_result.scalars().all())
 
         # Проверка лимита сообщений
-        has_subscription = await session.execute(
-            select(BotSubscription).filter(BotSubscription.bot_id == bot_entry.id)
-        )
-        has_subscription = has_subscription.scalars().first()
+        has_subscription = await get_active_subscription(session, bot_entry.id)
         daily_limit = 50000 if has_subscription else 100
 
         # Подсчёт отправленных сообщений за сегодня
@@ -1010,10 +1003,7 @@ async def send_mailing_task(mailing_id):
         bot = Bot(token=bot_entry.bot_token)
 
         # Проверка лимита сообщений
-        has_subscription = await session.execute(
-            select(BotSubscription).filter(BotSubscription.bot_id == bot_entry.id)
-        )
-        has_subscription = has_subscription.scalars().first()
+        has_subscription = await get_active_subscription(session, bot_entry.id)
         daily_limit = 50000 if has_subscription else 100
 
         # Подсчет уже отправленных сообщений на дату рассылки
