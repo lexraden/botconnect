@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+import urllib.parse
 from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI, Request
 from aiogram import types, Bot, Dispatcher
@@ -15,11 +16,11 @@ from handlers.channels import channels, channel_access, channel_messages, channe
 
 # Токен бота попадает в логи внутри webhook-пути (в том числе в url-кодированном
 # виде), а логи видит любой, у кого есть доступ к проекту
-BOT_TOKEN_PATTERN = re.compile(r"(\d{6,})(:|%3A)([A-Za-z0-9_-]{30,})", re.IGNORECASE)
+BOT_TOKEN_PATTERN = re.compile(r"(\\d{6,})(:|%3A)([A-Za-z0-9_-]{30,})", re.IGNORECASE)
 
 def mask_bot_tokens(value):
     if isinstance(value, str):
-        return BOT_TOKEN_PATTERN.sub(r"\1\2***", value)
+        return BOT_TOKEN_PATTERN.sub(r"\\1\\2***", value)
     return value
 
 class BotTokenMaskingFilter(logging.Filter):
@@ -36,7 +37,7 @@ class BotTokenMaskingFilter(logging.Filter):
         return True
 
 def mask_tokens_in_logs():
-    """
+    """"
     Вешает маскировку на логи uvicorn: у них собственные обработчики,
     так что настройки основного логирования их не покрывают.
     """
@@ -61,9 +62,13 @@ dp_for_added_bots.include_router(handlers_for_added_bots.router)
 
 app = FastAPI()
 
-# Уникальный путь для основного бота
-MAIN_BOT_WEBHOOK_PATH = f"/bot/{TOKEN}"
-MAIN_BOT_WEBHOOK_URL = f"{WEBHOOK_TUNNEL_URL}{MAIN_BOT_WEBHOOK_PATH}"
+# Уникальный путь для основного бота (с URL-кодированием токена для безопасности в пути)
+if TOKEN:
+    ENCODED_TOKEN = urllib.parse.quote(TOKEN, safe='')
+else:
+    ENCODED_TOKEN = ''
+MAIN_BOT_WEBHOOK_PATH = f"/bot/{ENCODED_TOKEN}" if ENCODED_TOKEN else "/bot/"
+MAIN_BOT_WEBHOOK_URL = f"{WEBHOOK_TUNNEL_URL}{MAIN_BOT_WEBHOOK_PATH}" if WEBHOOK_TUNNEL_URL and ENCODED_TOKEN else ""
 
 async def periodic_mailing_task():
     while True:
@@ -94,11 +99,11 @@ async def setup_main_bot_webhook():
     Настройка webhook для основного бота.
     """
     await create_tables()
-    
+
     asyncio.create_task(periodic_mailing_task())
     asyncio.create_task(periodic_subscription_check_task(bot))
     asyncio.create_task(periodic_subscription_check(bot))
-    
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
@@ -107,7 +112,7 @@ async def setup_main_bot_webhook():
             logging.StreamHandler(),  # Логи в консоль
             RotatingFileHandler(
                 "bot.log",           # Имя файла для записи логов
-                maxBytes=50 * 1024 * 1024,  # Максимальный размер файла (5 МБ)
+                maxBytes=5 * 1024 * 1024,  # Максимальный размер файла (5 МБ)
                 backupCount=3             # Количество резервных копий
             )
         ]
@@ -130,8 +135,8 @@ async def setup_main_bot_webhook():
 
     # Устанавливаем webhook. Ошибка здесь не должна ронять запуск приложения,
     # но обязана быть видна в логах: без webhook бот не получает обновления
-    if not WEBHOOK_TUNNEL_URL:
-        logging.error("WEBHOOK_TUNNEL_URL не задан, Telegram не сможет доставлять обновления")
+    if not WEBHOOK_TUNNEL_URL or not TOKEN:
+        logging.error("WEBHOOK_TUNNEL_URL или TOKEN не задан, Telegram не сможет доставлять обновления")
     else:
         try:
             await bot.set_webhook(url=MAIN_BOT_WEBHOOK_URL, drop_pending_updates = True)
@@ -149,7 +154,7 @@ async def process_main_bot_webhook(request: Request):
         await dp.feed_update(bot, telegram_update)
     except Exception as e:
         logging.error(f"Ошибка при обработке вебхука: {e}")
-    
+
     # Возвращаем 200 даже в случае ошибки
     return {"status": "success"}
 
@@ -191,7 +196,7 @@ async def process_added_bot_webhook(bot_token: str, request: Request):
 
     except Exception as e:
         logging.error(f"Ошибка при обработке вебхука: {e}")
-    
+
     # Возвращаем 200 даже в случае ошибки
     return {"status": "success"}
 
@@ -205,6 +210,5 @@ async def on_shutdown():
     try:
         await bot.session.close()
         await engine.dispose()
-
     except Exception as e:
         print(f"Ошибка при завершении работы: {e}")
