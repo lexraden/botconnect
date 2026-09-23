@@ -140,7 +140,7 @@ async def setup_main_bot_webhook():
     else:
         try:
             await bot.set_webhook(url=MAIN_BOT_WEBHOOK_URL, drop_pending_updates = True)
-            logging.info(f"Webhook главного бота установлен на {WEBHOOK_TUNNEL_URL}")
+            logging.info(f"Webhook главного бота установлен на {MAIN_BOT_WEBHOOK_URL}")
         except Exception as e:
             logging.error(f"Не удалось установить webhook главного бота: {e}")
 
